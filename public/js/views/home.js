@@ -51,10 +51,12 @@ function focusCard() {
 function taskCard() {
   const t = suggestTask(skipIds);
   if (!t) {
-    return `<section class="card empty">
-      <h2>Nada pendiente 🙌</h2>
-      <p class="muted">¿Tienes algo dando vueltas en la cabeza? Sácalo de ahí.</p>
-      <button class="btn" data-act="go" data-to="capturar">+ Vaciar la cabeza</button>
+    return `<section class="card now">
+      <div class="label">AHORA</div>
+      <h2 class="task-title">No tienes tareas anotadas</h2>
+      <p class="muted">Anota lo que tengas pendiente y Turbo elige por dónde partir. O usa 5 minutos para cualquier cosa.</p>
+      <button class="btn huge" data-act="go" data-to="capturar">🧠 Vaciar la cabeza</button>
+      <button class="btn ghost" data-act="homeFree">▶ Solo 5 minutos (sin tarea)</button>
     </section>`;
   }
   const step = nextStep(t);
@@ -125,6 +127,7 @@ export function mount() {
 export const actions = {
   homeOnboarded: () => update(s => { s.meta.onboarded = true; }),
   homeStart: el => startFocus(el.dataset.id, Number(el.dataset.min)),
+  homeFree: () => startFocus(null, 5),
   homeStep: el => toggleStep(el.dataset.task, el.dataset.step),
   homeBreak: el => breakdown(el.dataset.id),
   homeDone: el => completeTask(el.dataset.id),
