@@ -13,8 +13,8 @@ export function render() {
     <section class="card">
       <h3>🔌 Servidor</h3>
       <p class="muted small">Activa la IA, el respaldo y las notificaciones. Es la clave secreta (APP_SECRET) que pusiste en Cloudflare.</p>
-      <input class="input" type="password" id="secret" value="${esc(s.secret)}" placeholder="Clave secreta" autocomplete="off">
-      <div class="row"><button class="btn" data-act="setSecret">Guardar y probar</button></div>
+      <input class="input" type="password" id="secret" value="${esc(s.secret)}" placeholder="Clave secreta" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <div class="row"><button class="btn ghost" data-act="setShowSecret">👁 Mostrar</button><button class="btn" data-act="setSecret">Guardar y probar</button></div>
       <p class="small">${hasServer() ? '🟢 Clave guardada' : '⚪ Sin conectar: la app funciona igual, pero sin IA ni notificaciones'}</p>
     </section>
 
@@ -47,6 +47,12 @@ export function render() {
 }
 
 export const actions = {
+  setShowSecret: el => {
+    const input = document.getElementById('secret');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    el.textContent = show ? '🙈 Ocultar' : '👁 Mostrar';
+  },
   setSecret: async () => {
     const v = document.getElementById('secret').value.trim();
     update(s => { s.settings.secret = v; });

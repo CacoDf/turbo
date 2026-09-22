@@ -65,8 +65,9 @@ async function kvSet(env, k, v) {
 
 function requireAuth(request, env) {
   if (!env.APP_SECRET) fail(500, 'Falta configurar APP_SECRET en Cloudflare.');
-  const got = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  if (got !== env.APP_SECRET) fail(401, 'Clave secreta incorrecta.');
+  // Se ignoran espacios sobrantes a ambos lados (fáciles de colar al copiar/pegar).
+  const got = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (got !== env.APP_SECRET.trim()) fail(401, 'Clave secreta incorrecta.');
 }
 
 // ---------- rutas ----------
