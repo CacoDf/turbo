@@ -7,7 +7,7 @@ import { rerender } from '../router.js';
 
 let editRewards = false;
 
-const TYPE_EMOJI = { task: '✅', step: '👣', focus: '⏱️', habit: '🔁', capture: '🧠' };
+const TYPE_EMOJI = { task: '✅', step: '👣', focus: '⏱️', habit: '🔁', capture: '🧠', routine: '🔄', money: '💸', mood: '⚡', study: '📚' };
 
 export function render() {
   const lv = levelInfo();

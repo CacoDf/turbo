@@ -41,7 +41,7 @@ export function render() {
 
     <section class="card">
       <h3>ℹ️ Turbo</h3>
-      <p class="muted small">Versión 1.0 · Fase 1. Hecha a tu medida.</p>
+      <p class="muted small">Versión 2.0 · Fase 2. Hecha a tu medida.</p>
       <button class="btn danger ghost small" data-act="setReset">Borrar todo y empezar de cero</button>
     </section>`;
 }

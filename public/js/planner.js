@@ -56,7 +56,17 @@ function score(t, freeMin) {
   if (t.steps?.some(x => x.done) || t.focusMs > 0) s += 15;
   if (freeMin != null) s += (t.minutes || 25) <= freeMin ? 10 : -10;
   s -= (t.skips || 0) * 3;
+  // Con poca energía conviene algo corto; con mucha, lo grande.
+  const energy = currentEnergy();
+  if (energy != null && energy <= 2) s += (t.minutes || 25) <= 15 ? 15 : (t.minutes || 25) >= 45 ? -10 : 0;
+  if (energy != null && energy >= 4 && (t.minutes || 25) >= 45) s += 8;
   return s;
+}
+
+// Energía del último check-in si fue hace menos de 5 horas.
+function currentEnergy() {
+  const last = state.mood?.[0];
+  return last && Date.now() - last.t < 5 * 3600000 ? last.energy : null;
 }
 
 export function suggestTask(skipIds = []) {
@@ -175,6 +185,20 @@ export function computeReminders() {
       const pending = state.habits.filter(h => !h.archived && (log[h.id] || 0) < h.target);
       if (pending.length) out.push({ id: `habits-${dayKey(day)}`, at: habitsAt, title: '✅ Revisa tus hábitos', body: `Te faltan: ${pending.map(h => h.emoji + ' ' + h.name).join(', ')}` });
     }
+  }
+  for (let i = 0; i < 2; i++) {
+    const day = addDays(new Date(), i);
+    for (const r of state.routines || []) {
+      if (!r.at || !r.days?.includes(day.getDay()) || state.routineLog?.[dayKey(day)]?.[r.id]) continue;
+      const at = atTime(day, r.at).getTime();
+      if (at > now && at < horizon) out.push({ id: `rt-${r.id}-${dayKey(day)}`, at, title: `${r.emoji} Rutina de ${r.name}`, body: `${r.steps.length} pasos. Abre Turbo y sigue uno a la vez.` });
+    }
+  }
+  const tomorrow = dayKey(addDays(new Date(), 1));
+  for (const e of state.exams || []) {
+    if (e.done || e.date !== tomorrow) continue;
+    const at = atTime(new Date(), '20:00').getTime();
+    if (at > now) out.push({ id: `exam-${e.id}`, at, title: '📚 Mañana tienes evaluación', body: `${e.title}. Repaso corto y a dormir temprano.` });
   }
   for (const t of openTasks()) {
     if (t.due === dayKey(addDays(new Date(), 1))) {

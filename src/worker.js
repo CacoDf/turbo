@@ -70,14 +70,44 @@ function requireAuth(request, env) {
   if (got !== env.APP_SECRET.trim()) fail(401, 'Clave secreta incorrecta.');
 }
 
+async function requireShareToken(request, env) {
+  const token = request.headers.get('X-Share-Token') || '';
+  const saved = await kvGet(env, 'shareToken');
+  if (!saved || token !== saved) fail(404, 'Link no disponible');
+}
+
+// Mensaje de ánimo desde la página de la pareja: se guarda y llega como notificación.
+async function receiveCheer(env, body) {
+  const msg = String(body.msg || '').trim().slice(0, 140);
+  const from = String(body.from || '').trim().slice(0, 30);
+  if (!msg) fail(400, 'Mensaje vacío');
+  const cheers = (await kvGet(env, 'cheers')) || [];
+  const lastDay = cheers.filter(c => Date.now() - c.t < 86400000).length;
+  if (lastDay >= 30) fail(429, 'Demasiados mensajes por hoy');
+  cheers.unshift({ t: Date.now(), from, msg });
+  await kvSet(env, 'cheers', cheers.slice(0, 100));
+  await notifyAll(env, [{ title: `💌 ${from || 'Te mandaron ánimo'}`, body: msg, tag: `cheer-${Date.now()}` }]);
+  return json({ ok: true });
+}
+
 // ---------- rutas ----------
 
 async function api(request, env, url) {
   const path = url.pathname.slice(5); // sin "/api/"
   const method = request.method;
 
-  // Único endpoint sin clave: el service worker pide sus mensajes usando su endpoint (que es secreto).
+  // Endpoints sin APP_SECRET:
+  // - el service worker pide sus mensajes usando su endpoint (que es secreto);
+  // - la página de la pareja usa su propio token de solo lectura.
   if (path === 'push/pending' && method === 'GET') return pendingMessages(env, url.searchParams.get('endpoint'));
+  if (path === 'share/view' && method === 'GET') {
+    await requireShareToken(request, env);
+    return json({ summary: (await kvGet(env, 'share')) || null });
+  }
+  if (path === 'share/cheer' && method === 'POST') {
+    await requireShareToken(request, env);
+    return receiveCheer(env, await request.json().catch(() => ({})));
+  }
 
   requireAuth(request, env);
   const body = ['POST', 'PUT'].includes(method) ? await request.json().catch(() => ({})) : null;
@@ -101,6 +131,26 @@ async function api(request, env, url) {
 
     case 'POST ai/steps':
       return json({ steps: await aiSteps(env, body) });
+
+    case 'POST ai/studyplan':
+      return json({ sessions: await aiStudyPlan(env, body) });
+
+    case 'POST share/enable': {
+      if (!/^[a-f0-9]{24,64}$/.test(body?.token || '')) fail(400, 'Token inválido');
+      await kvSet(env, 'shareToken', body.token);
+      return json({ ok: true });
+    }
+
+    case 'POST share/disable':
+      await env.DB.prepare("DELETE FROM kv WHERE k IN ('shareToken', 'share')").run();
+      return json({ ok: true });
+
+    case 'PUT share/summary':
+      await kvSet(env, 'share', body.summary || null);
+      return json({ ok: true });
+
+    case 'GET cheers':
+      return json({ cheers: (await kvGet(env, 'cheers')) || [] });
 
     case 'GET push/key':
       return json({ key: (await vapidKeys(env)).publicKey });
@@ -210,6 +260,24 @@ Reglas:
   };
   const out = await gemini(env, system, `Tarea: ${String(title).slice(0, 200)}\nÁrea: ${area}\nTiempo total estimado: ${minutes} minutos`, schema);
   return (out.steps || []).slice(0, 8).map(s => ({ text: String(s.text).slice(0, 120), min: Math.max(1, Math.round(Number(s.min) || 5)) }));
+}
+
+async function aiStudyPlan(env, { course, kind, title, sessions }) {
+  const n = Math.max(1, Math.min(12, Number(sessions) || 1));
+  const system = `${PERSONA}
+Arma un plan de estudio en sesiones de 45 minutos para una evaluación universitaria.
+Reglas:
+- Exactamente ${n} sesiones, en orden.
+- Cada "title": qué hacer en esa sesión, concreto, empieza con verbo, máximo 10 palabras (sin el nombre del ramo).
+- La primera sesión: ordenar la materia / ver qué entra. Las del medio: estudiar por partes y practicar. La última: repaso final.
+- Si es una entrega o presentación, las sesiones son para avanzar el trabajo, no para estudiar.`;
+  const schema = {
+    type: 'OBJECT',
+    properties: { sessions: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING' } }, required: ['title'] } } },
+    required: ['sessions'],
+  };
+  const out = await gemini(env, system, `Ramo: ${String(course).slice(0, 80)}\nTipo: ${kind}\nEvaluación: ${String(title).slice(0, 200)}\nSesiones: ${n}`, schema);
+  return (out.sessions || []).slice(0, n).map(s => String(s.title).slice(0, 100));
 }
 
 // ---------- notificaciones (web push sin contenido + buzón) ----------

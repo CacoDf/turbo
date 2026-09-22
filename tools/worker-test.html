@@ -119,6 +119,38 @@ log(j.devices === 1 && pushes.length === 2, 'notificación de prueba');
 r = await worker.fetch(new Request('https://turbo.test/'), env);
 log((await r.text()) === 'asset', 'rutas normales van a la app');
 
+// ---- Fase 2 ----
+geminiReply = { sessions: [{ title: 'Ver qué entra' }, { title: 'Estudiar unidad 3' }, { title: 'Repaso' }] };
+j = await (await req('POST', 'ai/studyplan', { course: 'Finanzas', kind: 'prueba', title: 'P2', sessions: 3 })).json();
+log(j.sessions?.length === 3 && j.sessions[0] === 'Ver qué entra', 'IA: plan de estudio', JSON.stringify(j.sessions));
+
+const share = (method, path, token, body) => worker.fetch(new Request(`https://turbo.test/api/${path}`, {
+  method, headers: { 'Content-Type': 'application/json', 'X-Share-Token': token }, body: body ? JSON.stringify(body) : undefined,
+}), env);
+const TOKEN = 'a'.repeat(36);
+r = await share('GET', 'share/view', TOKEN);
+log(r.status === 404, 'pareja: sin link activo → 404', r.status);
+r = await req('POST', 'share/enable', { token: 'corto' });
+log(r.status === 400, 'pareja: token inválido rechazado', r.status);
+r = await req('POST', 'share/enable', { token: TOKEN });
+await req('PUT', 'share/summary', { summary: { level: 3, tasksDone: 5 } });
+j = await (await share('GET', 'share/view', TOKEN)).json();
+log(j.summary?.tasksDone === 5, 'pareja: ve el resumen con su token');
+r = await share('GET', 'share/view', 'b'.repeat(36));
+log(r.status === 404, 'pareja: token equivocado → 404', r.status);
+const before = pushes.length;
+r = await share('POST', 'share/cheer', TOKEN, { from: 'Polola', msg: '¡Vamos! 💪' });
+log(r.ok && pushes.length === before + 1, 'pareja: ánimo manda notificación', r.status);
+j = await (await worker.fetch(new Request('https://turbo.test/api/push/pending?endpoint=' + encodeURIComponent('https://push.test/abc')), env)).json();
+log(j.messages.some(m => m.title === '💌 Polola' && m.body === '¡Vamos! 💪'), 'pareja: notificación con el mensaje', JSON.stringify(j.messages));
+j = await (await req('GET', 'cheers')).json();
+log(j.cheers.length === 1 && j.cheers[0].from === 'Polola', 'app lee los mensajes de ánimo');
+r = await share('POST', 'share/cheer', TOKEN, { msg: '   ' });
+log(r.status === 400, 'pareja: mensaje vacío rechazado', r.status);
+await req('POST', 'share/disable');
+r = await share('GET', 'share/view', TOKEN);
+log(r.status === 404, 'pareja: link desactivado → 404', r.status);
+
 lines.push('', failures ? `${failures} FALLARON` : 'TODO OK');
 out.textContent = lines.join('\n');
 </script>

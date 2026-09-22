@@ -4,6 +4,8 @@ Tu copiloto para arrancar, terminar y ordenar el día. Hecha a medida, gratis y 
 
 **Fase 1:** Ahora (una sola tarea), Vaciar cabeza, Modo Foco con compañía, Día, Hábitos, Garage (niveles, autos, premios) y Escudo.
 
+**Fase 2:** Rutinas paso a paso, Plata (gastos, hormiga, "¿Lo necesito?" con espera de 24 h, presupuesto), Ánimo y energía (check-in y patrones; la tarea sugerida se ajusta a tu energía), Estudios (ramos, pruebas y plan de sesiones hacia atrás con IA) y Pareja (link de solo lectura en `/pareja.html` + mensajes de ánimo como notificación).
+
 ---
 
 ## Instalación (una sola vez, ~20 min)

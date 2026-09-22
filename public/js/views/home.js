@@ -6,8 +6,32 @@ import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, DAY_SHORT } from '..
 import { bar, carSvg } from '../ui.js';
 import { startFocus, breakdown, toggleStep, completeTask } from '../actions.js';
 import { rerender, go } from '../router.js';
+import { routineNow, startRoutine } from './routines.js';
+import { needsCheckin, checkinCard } from './mood.js';
+import { unseenCheer } from './partner.js';
 
 let skipIds = [];
+
+// Como mucho UNA tarjeta extra, para no llenar la pantalla: ánimo recibido > rutina > check-in.
+function extraCard() {
+  const cheer = unseenCheer();
+  if (cheer) {
+    return `<section class="card cheer">
+      <div class="label">💌 TE MANDARON ÁNIMO</div>
+      <p><b>${esc(cheer.from || 'Alguien')}:</b> ${esc(cheer.msg)}</p>
+      <button class="btn ghost small" data-act="homeCheerSeen">❤️ Gracias</button>
+    </section>`;
+  }
+  const r = routineNow();
+  if (r) {
+    return `<section class="card compact row between">
+      <span>${r.emoji} Es hora de tu rutina de <b>${esc(r.name)}</b></span>
+      <button class="btn small" data-act="homeRoutine" data-id="${r.id}">▶ Empezar</button>
+    </section>`;
+  }
+  if (needsCheckin()) return checkinCard();
+  return '';
+}
 
 function eventPill() {
   const { current, next } = nowAndNext();
@@ -100,6 +124,7 @@ export function render() {
   </header>
   ${eventPill()}
   ${onboarding()}
+  ${state.focus ? '' : extraCard()}
   ${focusCard()}
   ${state.focus ? '' : taskCard()}
   <section class="card compact" data-act="go" data-to="habitos">
@@ -128,6 +153,11 @@ export const actions = {
   homeOnboarded: () => update(s => { s.meta.onboarded = true; }),
   homeStart: el => startFocus(el.dataset.id, Number(el.dataset.min)),
   homeFree: () => startFocus(null, 5),
+  homeCheerSeen: () => update(s => { s.partner.seenCheers = s.partner.cheers.length; }),
+  homeRoutine: el => {
+    startRoutine(el.dataset.id);
+    go('rutinas');
+  },
   homeStep: el => toggleStep(el.dataset.task, el.dataset.step),
   homeBreak: el => breakdown(el.dataset.id),
   homeDone: el => completeTask(el.dataset.id),

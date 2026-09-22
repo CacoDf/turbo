@@ -31,6 +31,18 @@ export async function aiSteps(task) {
   return steps;
 }
 
+export async function aiStudyPlan(info) {
+  const { sessions } = await call('ai/studyplan', { method: 'POST', body: info });
+  return sessions;
+}
+
+// ---- Modo pareja ----
+
+export const shareEnable = token => call('share/enable', { method: 'POST', body: { token } });
+export const shareDisable = () => call('share/disable', { method: 'POST' });
+export const sharePut = summary => call('share/summary', { method: 'PUT', body: { summary } });
+export const getCheers = () => call('cheers');
+
 // ---- Respaldo ----
 
 let pushTimer = null;

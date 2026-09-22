@@ -4,6 +4,7 @@ import { checkStreak } from './game.js';
 import { closeSheet, unlockAudio } from './ui.js';
 import { setRenderer, route } from './router.js';
 import { pullBackup, scheduleBackup, scheduleReminderSync } from './api.js';
+import { schedulePartnerSync, refreshCheers } from './views/partner.js';
 import * as home from './views/home.js';
 import * as focus from './views/focus.js';
 import * as capture from './views/capture.js';
@@ -13,8 +14,17 @@ import * as day from './views/day.js';
 import * as garage from './views/garage.js';
 import * as shield from './views/shield.js';
 import * as settings from './views/settings.js';
+import * as more from './views/more.js';
+import * as routines from './views/routines.js';
+import * as money from './views/money.js';
+import * as mood from './views/mood.js';
+import * as studies from './views/studies.js';
+import * as partner from './views/partner.js';
 
-const VIEWS = { ahora: home, foco: focus, capturar: capture, tareas: tasks, habitos: habits, dia: day, garage, escudo: shield, ajustes: settings };
+const VIEWS = {
+  ahora: home, foco: focus, capturar: capture, tareas: tasks, habitos: habits, dia: day, mas: more,
+  garage, escudo: shield, ajustes: settings, rutinas: routines, plata: money, animo: mood, estudios: studies, pareja: partner,
+};
 const ACTIONS = Object.assign({ closeSheet }, ...Object.values(VIEWS).map(v => v.actions || {}));
 
 const NAV = [
@@ -22,8 +32,10 @@ const NAV = [
   ['tareas', '📋', 'Tareas'],
   ['habitos', '🔁', 'Hábitos'],
   ['dia', '🗓️', 'Día'],
-  ['garage', '🏎️', 'Garage'],
+  ['mas', '➕', 'Más'],
 ];
+// Pantallas que viven dentro de "Más" (para marcar esa pestaña).
+const UNDER_MORE = ['garage', 'escudo', 'ajustes', 'rutinas', 'plata', 'animo', 'estudios', 'pareja'];
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -41,7 +53,8 @@ function render() {
     lastRoute = r;
   }
   nav.hidden = r === 'foco';
-  nav.innerHTML = NAV.map(([id, icon, label]) => `<a href="#/${id}" class="${id === r ? 'on' : ''}"><span>${icon}</span>${label}</a>`).join('');
+  const tab = UNDER_MORE.includes(r) ? 'mas' : r;
+  nav.innerHTML = NAV.map(([id, icon, label]) => `<a href="#/${id}" class="${id === tab ? 'on' : ''}"><span>${icon}</span>${label}</a>`).join('');
   unmount = view.mount?.() || null;
 }
 
@@ -64,6 +77,7 @@ window.addEventListener('hashchange', () => {
 subscribe(() => {
   queueRender();
   scheduleBackup();
+  schedulePartnerSync();
 });
 
 // Un solo manejador para todos los botones: data-act="nombreAccion".
@@ -87,6 +101,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   checkStreak();
   pullBackup();
+  refreshCheers();
   scheduleReminderSync();
   queueRender();
 });
@@ -100,6 +115,7 @@ async function boot() {
   if (await pullBackup()) queueRender();
   scheduleReminderSync();
   scheduleBackup();
+  refreshCheers();
 }
 
 boot();

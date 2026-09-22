@@ -52,6 +52,11 @@ export const XP = {
   capture: 5,
   shieldWin: 50,
   shieldLog: 10,
+  routine: 20,
+  expense: 3,
+  wishSkip: 15,
+  mood: 3,
+  studyPlan: 10,
 };
 
 // Suma XP y bencina. Devuelve info de subida de nivel para celebrar.

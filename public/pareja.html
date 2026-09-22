@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Avance en Turbo</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0f1216">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .week { display: flex; gap: 6px; margin-top: 8px; }
+    .week div { flex: 1; text-align: center; padding: 8px 0; border-radius: 10px; background: var(--surface2); font-size: 13px; color: var(--muted); }
+    .week div.on { background: #24492f; color: var(--good); font-weight: 700; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid2 .card { margin: 0; text-align: center; }
+    textarea.input { min-height: 90px; }
+  </style>
+</head>
+<body>
+  <main id="app"><p class="muted center" style="margin-top:40vh">Cargando…</p></main>
+  <script type="module">
+    import { carSvg } from '/js/ui.js';
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const token = location.hash.slice(1);
+    const app = document.getElementById('app');
+    const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+    async function load() {
+      const res = await fetch('/api/share/view', { headers: { 'X-Share-Token': token } });
+      if (!res.ok) {
+        app.innerHTML = '<section class="card empty" style="margin-top:30vh"><h2>Link no disponible</h2><p class="muted">Puede que lo hayan desactivado.</p></section>';
+        return;
+      }
+      const { summary: s } = await res.json();
+      const updated = new Date(s.updated).toLocaleString('es-CL', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+      app.innerHTML = `
+        <header class="top"><h1>🏎️ Su semana en Turbo</h1></header>
+        <section class="card hero center">
+          ${carSvg(s.carColor, { size: 220 })}
+          <h2>${esc(s.car)}</h2>
+          <div class="muted">Nivel ${s.level} · 🔥 racha de ${s.streak} ${s.streak === 1 ? 'día' : 'días'}</div>
+          <div class="week">${s.activeDays.map((d, i) => `<div class="${d.active ? 'on' : ''}">${DAYS[i]}</div>`).join('')}</div>
+        </section>
+        <div class="grid2">
+          <section class="card"><div class="big-num">${s.tasksDone}</div><div class="muted small">tareas terminadas</div></section>
+          <section class="card"><div class="big-num">${s.focusMin}</div><div class="muted small">minutos de foco</div></section>
+          <section class="card"><div class="big-num">${s.habitsPct}%</div><div class="muted small">hábitos cumplidos</div></section>
+          <section class="card"><div class="big-num">${s.routines}</div><div class="muted small">rutinas completas</div></section>
+        </div>
+        ${s.habitStreaks?.some(h => h.streak) ? `<h3 class="group">Rachas de hábitos</h3><section class="card">${s.habitStreaks.filter(h => h.streak).map(h => `<div class="row between win"><span>${esc(h.name)}</span><b>🔥 ${h.streak}</b></div>`).join('')}</section>` : ''}
+        ${s.wins?.length ? `<h3 class="group">Lo que terminó</h3><section class="card">${s.wins.map(w => `<div class="win">✅ ${esc(w)}</div>`).join('')}</section>` : ''}
+        <h3 class="group">Mándale ánimo 💌</h3>
+        <section class="card">
+          <input class="input" id="from" placeholder="Tu nombre" maxlength="30">
+          <div class="chips pick">${['¡Vamos que se puede! 💪', 'Orgullosa de ti ❤️', '¡Bien ahí! 🔥', 'Un paso a la vez 🫶'].map(m => `<button class="chip" data-m="${esc(m)}">${esc(m)}</button>`).join('')}</div>
+          <textarea class="input" id="msg" maxlength="140" placeholder="O escribe tu mensaje…"></textarea>
+          <button class="btn" id="send">Enviar 💌</button>
+          <p class="muted small center">Le llega como notificación al celular.</p>
+        </section>
+        <p class="muted tiny center">Actualizado el ${esc(updated)}. No incluye nada privado.</p>`;
+      const from = document.getElementById('from');
+      try { from.value = localStorage.getItem('turbo.cheerName') || ''; } catch {}
+      document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => (document.getElementById('msg').value = b.dataset.m));
+      document.getElementById('send').onclick = async e => {
+        const msg = document.getElementById('msg').value.trim();
+        if (!msg) return;
+        try { localStorage.setItem('turbo.cheerName', from.value.trim()); } catch {}
+        e.target.disabled = true;
+        const r = await fetch('/api/share/cheer', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Share-Token': token }, body: JSON.stringify({ from: from.value.trim(), msg }) });
+        e.target.textContent = r.ok ? '¡Enviado! 💌' : 'No se pudo enviar';
+        if (r.ok) document.getElementById('msg').value = '';
+        setTimeout(() => { e.target.disabled = false; e.target.textContent = 'Enviar 💌'; }, 2500);
+      };
+    }
+    load();
+  </script>
+</body>
+</html>

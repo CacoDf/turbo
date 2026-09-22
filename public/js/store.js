@@ -3,6 +3,8 @@ import { uid, dayKey } from './util.js';
 
 const KEY = 'turbo.v1';
 
+const step = (text, min) => ({ id: uid(), text, min });
+
 function defaultState() {
   const now = Date.now();
   return {
@@ -43,6 +45,26 @@ function defaultState() {
     redemptions: [],
     focus: null, // { taskId, start, endAt, plannedMin, xpTicks }
     shield: { since: now, best: 0, events: [], guide: {} },
+    // ---- Fase 2 ----
+    routines: [
+      { id: uid(), name: 'Mañana', emoji: '☀️', at: '08:00', days: [1, 2, 3, 4, 5], steps: [
+        step('Tomar un vaso de agua', 1), step('Ducha', 10), step('Vestirme', 5), step('Desayunar', 15),
+        step('Mochila: llaves, billetera, audífonos, cargador', 3),
+      ] },
+      { id: uid(), name: 'Noche', emoji: '🌙', at: '23:30', days: [0, 1, 2, 3, 4, 5, 6], steps: [
+        step('Dejar lista la ropa y mochila de mañana', 5), step('Celu a cargar lejos de la cama', 1),
+        step('Lavarme los dientes', 3), step('Mirar qué tengo mañana en Turbo', 2),
+      ] },
+      { id: uid(), name: 'Antes del gym', emoji: '🏋️', at: null, days: [], steps: [
+        step('Llenar la botella', 1), step('Ropa y zapatillas', 3), step('Audífonos y playlist', 1), step('Snack o pre-entreno', 5),
+      ] },
+    ],
+    routineLog: {}, // { 'YYYY-MM-DD': { routineId: true } }
+    money: { expenses: [], wishlist: [], weekBudget: null },
+    mood: [], // { t, day, energy 1-5, mood 1-5, tags: [] }
+    courses: [], // { id, name, color }
+    exams: [], // { id, courseId, kind, title, date, hours, planned, done }
+    partner: { enabled: false, token: null, showTitles: false, cheers: [], seenCheers: 0 },
     meta: { createdAt: now, updatedAt: now, onboarded: false },
   };
 }
@@ -54,6 +76,8 @@ function migrate(s) {
   s.settings = { ...d.settings, ...s.settings };
   s.game = { ...d.game, ...s.game, streak: { ...d.game.streak, ...(s.game?.streak || {}) } };
   s.shield = { ...d.shield, ...s.shield };
+  s.money = { ...d.money, ...s.money };
+  s.partner = { ...d.partner, ...s.partner };
   s.meta = { ...d.meta, ...s.meta };
   return s;
 }

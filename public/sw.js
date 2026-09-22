@@ -1,10 +1,11 @@
 // Service worker: permite abrir Turbo sin internet y recibir notificaciones.
-const CACHE = 'turbo-v1';
+const CACHE = 'turbo-v2';
 const SHELL = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest',
   '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js',
   '/js/views/home.js', '/js/views/focus.js', '/js/views/capture.js', '/js/views/tasks.js', '/js/views/habits.js',
   '/js/views/day.js', '/js/views/garage.js', '/js/views/shield.js', '/js/views/settings.js',
+  '/js/views/more.js', '/js/views/routines.js', '/js/views/money.js', '/js/views/mood.js', '/js/views/studies.js', '/js/views/partner.js',
   '/icons/icon-192.png', '/icons/apple-touch-icon.png',
 ];
 
