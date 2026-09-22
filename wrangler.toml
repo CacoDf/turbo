@@ -1,0 +1,22 @@
+# Configuración de Cloudflare para Turbo (app + servidor en un solo Worker).
+name = "turbo"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+# Base de datos: crea una D1 llamada "turbo" en el panel de Cloudflare y pega aquí su ID.
+[[d1_databases]]
+binding = "DB"
+database_name = "turbo"
+database_id = "PEGAR_AQUI_EL_ID_DE_D1"
+
+# Revisa cada minuto si hay recordatorios que mandar.
+[triggers]
+crons = ["* * * * *"]
+
+# Mantener las variables/secretos configurados en el panel al publicar.
+keep_vars = true

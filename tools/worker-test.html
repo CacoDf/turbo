@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- Prueba del servidor en el navegador: SQLite (sql.js) hace de D1 y se simulan push y Gemini.
+     Uso: servir la carpeta turbo/ (python -m http.server 8788 --directory turbo) y abrir /tools/worker-test.html -->
+<meta charset="utf-8">
+<title>Turbo worker test</title>
+<body style="font:14px monospace;background:#111;color:#ddd;padding:16px">
+<pre id="out">Corriendo…</pre>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script type="module">
+const out = document.getElementById('out');
+const lines = [];
+let failures = 0;
+const log = (ok, name, extra = '') => { if (!ok) failures++; lines.push(`${ok ? 'PASS' : 'FAIL'}  ${name} ${extra}`); out.textContent = lines.join('\n'); };
+
+const SQL = await initSqlJs({ locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}` });
+const db = new SQL.Database();
+
+class Stmt {
+  constructor(sql, params = []) { this.sql = sql; this.params = params; }
+  bind(...p) { return new Stmt(this.sql, p); }
+  rows() { const st = db.prepare(this.sql); st.bind(this.params); const r = []; while (st.step()) r.push(st.getAsObject()); st.free(); return r; }
+  async first() { return this.rows()[0] ?? null; }
+  async all() { return { results: this.rows() }; }
+  async run() { db.run(this.sql, this.params); return { success: true }; }
+}
+const DB = { prepare: sql => new Stmt(sql), batch: async list => { for (const s of list) await s.run(); return []; } };
+
+const pushes = [];
+let geminiReply = null;
+const realFetch = window.fetch;
+window.fetch = async (url, init) => {
+  const u = String(url);
+  if (u.startsWith('https://push.test/')) { pushes.push({ url: u, init }); return new Response('', { status: 201 }); }
+  if (u.includes('generativelanguage.googleapis.com')) {
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(geminiReply) }] } }] }), { status: 200 });
+  }
+  return realFetch(url, init);
+};
+
+const worker = (await import('/src/worker.js')).default;
+const env = { DB, APP_SECRET: 'secreto', ASSETS: { fetch: () => new Response('asset') } };
+const req = (method, path, body, auth = true) => worker.fetch(new Request(`https://turbo.test/api/${path}`, {
+  method, headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer secreto' } : {}) }, body: body ? JSON.stringify(body) : undefined,
+}), env);
+
+let r = await req('GET', 'ping', null, false);
+log(r.status === 401, 'sin clave → 401', r.status);
+r = await req('GET', 'ping');
+let j = await r.json();
+log(r.ok && j.ok && j.ai === false, 'ping con clave', JSON.stringify(j));
+
+r = await req('PUT', 'state', { updatedAt: 100, state: { tasks: [1] } });
+log(r.ok, 'guardar respaldo');
+j = await (await req('GET', 'state')).json();
+log(j.updatedAt === 100 && j.state.tasks[0] === 1, 'leer respaldo');
+r = await req('PUT', 'state', { updatedAt: 50, state: {} });
+log(r.status === 409, 'no pisa con versión vieja', r.status);
+
+j = await (await req('GET', 'push/key')).json();
+log(j.key && j.key.length === 87, 'clave VAPID pública', j.key?.length);
+const pubKey = j.key;
+
+r = await req('POST', 'push/subscribe', { endpoint: 'https://push.test/abc', keys: {} });
+log(r.ok, 'suscribir dispositivo');
+
+const now = Date.now();
+r = await req('PUT', 'reminders', { reminders: [
+  { id: 'a', at: now - 1000, title: 'Ya toca', body: 'b1' },
+  { id: 'b', at: now + 3600000, title: 'Después', body: 'b2' },
+  { id: 'old', at: now - 3600000, title: 'Muy viejo', body: '' },
+] });
+log(r.ok, 'guardar recordatorios');
+
+let waits = [];
+await worker.scheduled({}, env, { waitUntil: p => waits.push(p) });
+await Promise.all(waits);
+log(pushes.length === 1, 'cron manda 1 push', pushes.length);
+
+const auth = pushes[0]?.init.headers.Authorization || '';
+const m = auth.match(/^vapid t=([^.]+)\.([^.]+)\.([^,]+), k=(.+)$/);
+if (m) {
+  const b64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('raw', b64(m[4]), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+  const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64(m[3]), new TextEncoder().encode(`${m[1]}.${m[2]}`));
+  const payload = JSON.parse(new TextDecoder().decode(b64(m[2])));
+  log(ok, 'firma VAPID válida');
+  log(m[4] === pubKey && payload.aud === 'https://push.test' && payload.sub === 'https://turbo.test', 'JWT con aud/sub correctos', JSON.stringify(payload));
+} else log(false, 'header Authorization', auth);
+
+j = await (await worker.fetch(new Request('https://turbo.test/api/push/pending?endpoint=' + encodeURIComponent('https://push.test/abc')), env)).json();
+log(j.messages.length === 1 && j.messages[0].title === 'Ya toca', 'buzón entrega el mensaje (y no el viejo)', JSON.stringify(j.messages));
+j = await (await worker.fetch(new Request('https://turbo.test/api/push/pending?endpoint=' + encodeURIComponent('https://push.test/abc')), env)).json();
+log(j.messages.length === 0, 'buzón queda vacío');
+
+waits = [];
+await worker.scheduled({}, env, { waitUntil: p => waits.push(p) });
+await Promise.all(waits);
+log(pushes.length === 1, 'cron no repite recordatorios enviados', pushes.length);
+
+r = await req('PUT', 'reminders', { reminders: [{ id: 'a', at: now - 1000, title: 'Ya toca', body: 'b1' }] });
+waits = [];
+await worker.scheduled({}, env, { waitUntil: p => waits.push(p) });
+await Promise.all(waits);
+log(pushes.length === 1, 're-sincronizar no reenvía uno ya mandado', pushes.length);
+
+r = await req('POST', 'ai/capture', { text: 'algo', today: 'hoy' });
+log(r.status === 503, 'IA sin clave → 503', r.status);
+env.GEMINI_API_KEY = 'x';
+geminiReply = { tasks: [{ title: 'Estudiar finanzas', area: 'estudios', minutes: 47, due: '2026-09-25' }, { title: 'Algo raro', area: 'marte', minutes: 999, due: 'viernes' }] };
+j = await (await req('POST', 'ai/capture', { text: 'estudiar finanzas el viernes', today: 'hoy' })).json();
+log(j.tasks[0].minutes === 45 && j.tasks[0].due === '2026-09-25' && j.tasks[1].area === 'personal' && j.tasks[1].minutes === 240 && j.tasks[1].due === null, 'IA: normaliza tareas', JSON.stringify(j.tasks));
+geminiReply = { steps: [{ text: 'Abrir el PDF', min: 1 }, { text: 'Leer la página 1', min: 5 }] };
+j = await (await req('POST', 'ai/steps', { title: 'Estudiar', area: 'estudios', minutes: 30 })).json();
+log(j.steps.length === 2 && j.steps[0].text === 'Abrir el PDF', 'IA: pasos');
+
+j = await (await req('POST', 'push/test')).json();
+log(j.devices === 1 && pushes.length === 2, 'notificación de prueba');
+
+r = await worker.fetch(new Request('https://turbo.test/'), env);
+log((await r.text()) === 'asset', 'rutas normales van a la app');
+
+lines.push('', failures ? `${failures} FALLARON` : 'TODO OK');
+out.textContent = lines.join('\n');
+</script>
