@@ -12,7 +12,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "turbo"
-database_id = "PEGAR_AQUI_EL_ID_DE_D1"
+database_id = "be318b9c-8b5d-47f9-8de7-7e7216310b82"
 
 # Revisa cada minuto si hay recordatorios que mandar.
 [triggers]
