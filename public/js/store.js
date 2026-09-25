@@ -15,6 +15,7 @@ function defaultState() {
       remindBefore: 15, // minutos antes de cada bloque del horario
       morningAt: '09:00',
       habitsAt: '21:00',
+      reviewAt: '19:00', // revisión semanal, los domingos
     },
     schedule: [
       { id: uid(), title: 'Clases', kind: 'clase', days: [2, 3], start: '08:30', end: '11:30' },
@@ -65,6 +66,15 @@ function defaultState() {
     courses: [], // { id, name, color }
     exams: [], // { id, courseId, kind, title, date, hours, planned, done }
     partner: { enabled: false, token: null, showTitles: false, cheers: [], seenCheers: 0 },
+    // ---- Fase 3 ----
+    chat: [], // { id, role: 'user'|'ai', text, actions?, status?, t }
+    goals: [], // { id, title, why, deadline, createdAt, weekPlanned, done }
+    weekFocus: null, // { week: 'YYYY-MM-DD' (lunes), items: [] }
+    reviews: [], // { week, t, stats, ai }
+    challenges: { month: null, claimed: [] },
+    trophies: [], // { month, theme }
+    calendar: { token: null, importOn: false, lastImport: 0 },
+    extEvents: [], // eventos importados: { title, date, start, end, allDay }
     meta: { createdAt: now, updatedAt: now, onboarded: false },
   };
 }
@@ -78,6 +88,8 @@ function migrate(s) {
   s.shield = { ...d.shield, ...s.shield };
   s.money = { ...d.money, ...s.money };
   s.partner = { ...d.partner, ...s.partner };
+  s.challenges = { ...d.challenges, ...s.challenges };
+  s.calendar = { ...d.calendar, ...s.calendar };
   s.meta = { ...d.meta, ...s.meta };
   return s;
 }

@@ -2,6 +2,7 @@
 import { state } from '../store.js';
 import { levelInfo, shieldDays } from '../game.js';
 import { dayKey, daysBetween } from '../util.js';
+import { challengeSummary } from '../challenges.js';
 
 const clp = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n || 0);
 
@@ -22,8 +23,13 @@ export function render() {
   const lv = levelInfo();
   const routinesDone = Object.keys(state.routineLog[dayKey()] || {}).length;
   const lastMood = state.mood[0];
+  const ch = challengeSummary();
+  const activeGoals = state.goals.filter(g => !g.done).length;
   const tiles = [
-    ['garage', '🏎️', 'Garage', `Nivel ${lv.lvl} · ⛽ ${state.game.fuel}`],
+    ['tareas', '📋', 'Tareas', `${state.tasks.filter(t => !t.done).length} pendientes`],
+    ['metas', '🎯', 'Metas', activeGoals ? `${activeGoals} activa${activeGoals > 1 ? 's' : ''}` : 'Crea tu primera meta'],
+    ['garage', '🏎️', 'Garage', ch.ready ? `🏁 ${ch.ready} desafío${ch.ready > 1 ? 's' : ''} por cobrar` : `Nivel ${lv.lvl} · ⛽ ${state.game.fuel}`],
+    ['revision', '🧭', 'Revisión semanal', new Date().getDay() === 0 ? '¡Hoy toca!' : 'Los domingos'],
     ['rutinas', '🔄', 'Rutinas', routinesDone ? `${routinesDone} hecha${routinesDone > 1 ? 's' : ''} hoy` : 'Mañana, noche, gym'],
     ['estudios', '📚', 'Estudios', nextExam()],
     ['plata', '💸', 'Plata', `${clp(weekSpent())} esta semana`],

@@ -9,6 +9,8 @@ import { rerender, go } from '../router.js';
 import { routineNow, startRoutine } from './routines.js';
 import { needsCheckin, checkinCard } from './mood.js';
 import { unseenCheer } from './partner.js';
+import { needsInterview } from './assistant.js';
+import { weekFocusCard } from './review.js';
 
 let skipIds = [];
 
@@ -27,6 +29,13 @@ function extraCard() {
     return `<section class="card compact row between">
       <span>${r.emoji} Es hora de tu rutina de <b>${esc(r.name)}</b></span>
       <button class="btn small" data-act="homeRoutine" data-id="${r.id}">▶ Empezar</button>
+    </section>`;
+  }
+  if (needsInterview()) {
+    return `<section class="card interview" data-act="go" data-to="secretaria">
+      <div class="label">☀️ PLANIFICA TU DÍA (1 MIN)</div>
+      <p>Tu secretaria te pregunta qué tienes hoy. Respondes hablando y ella anota todo.</p>
+      <button class="btn small">🤖 Empezar</button>
     </section>`;
   }
   if (needsCheckin()) return checkinCard();
@@ -52,7 +61,7 @@ function onboarding() {
   return `<section class="card intro">
     <h2>Bienvenido a Turbo 🏎️</h2>
     <ol>
-      <li><b>Vacía la cabeza:</b> anota todo lo pendiente, en desorden.</li>
+      <li><b>Cuéntale a tu secretaria 🤖</b> lo que tengas, hablando o escribiendo. Ella lo anota.</li>
       <li><b>Turbo elige una sola cosa</b> y la divide en pasos chicos.</li>
       <li><b>Toca "Solo 5 minutos".</b> Solo tienes que arrancar.</li>
     </ol>
@@ -78,8 +87,9 @@ function taskCard() {
     return `<section class="card now">
       <div class="label">AHORA</div>
       <h2 class="task-title">No tienes tareas anotadas</h2>
-      <p class="muted">Anota lo que tengas pendiente y Turbo elige por dónde partir. O usa 5 minutos para cualquier cosa.</p>
-      <button class="btn huge" data-act="go" data-to="capturar">🧠 Vaciar la cabeza</button>
+      <p class="muted">Cuéntale a tu secretaria qué tienes pendiente (o qué quieres lograr) y Turbo elige por dónde partir. O usa 5 minutos para cualquier cosa.</p>
+      <button class="btn huge" data-act="go" data-to="secretaria">🤖 Hablar con la secretaria</button>
+      <button class="btn ghost" data-act="go" data-to="metas">🎯 Crear una meta</button>
       <button class="btn ghost" data-act="homeFree">▶ Solo 5 minutos (sin tarea)</button>
     </section>`;
   }
@@ -103,7 +113,7 @@ function taskCard() {
       <button class="btn ghost" data-act="homeStart" data-id="${t.id}" data-min="25">Foco 25 min</button>
       <button class="btn ghost" data-act="homeDone" data-id="${t.id}">✓ Terminada</button>
     </div>
-    <button class="link" data-act="homeSkip" data-id="${t.id}">Ahora no, dame otra →</button>
+    <div class="row between"><button class="link" data-act="homeSkip" data-id="${t.id}">Ahora no, dame otra →</button><button class="link" data-act="go" data-to="tareas">Ver todas</button></div>
   </section>`;
 }
 
@@ -132,8 +142,9 @@ export function render() {
     ${bar(hb.total ? hb.done / hb.total : 0, 'var(--good)')}
     <div class="row between muted small"><span>Logros de hoy: ${wins}</span><span>Ver hábitos →</span></div>
   </section>
+  ${weekFocusCard()}
   <div class="row quick">
-    <button class="btn secondary" data-act="go" data-to="capturar">🧠 Vaciar cabeza</button>
+    <button class="btn secondary" data-act="go" data-to="secretaria">🤖 Anotar algo</button>
     <button class="btn shield" data-act="go" data-to="escudo" aria-label="Escudo">🛡️</button>
   </div>`;
 }

@@ -57,6 +57,9 @@ export const XP = {
   wishSkip: 15,
   mood: 3,
   studyPlan: 10,
+  assistant: 5,
+  review: 40,
+  challenge: 150,
 };
 
 // Suma XP y bencina. Devuelve info de subida de nivel para celebrar.

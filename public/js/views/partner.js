@@ -7,7 +7,7 @@ import { toast } from '../ui.js';
 import { hasServer, shareEnable, shareDisable, sharePut, getCheers } from '../api.js';
 import { rerender } from '../router.js';
 
-const SHARED_TYPES = ['task', 'step', 'focus', 'habit', 'capture', 'routine', 'study'];
+const SHARED_TYPES = ['task', 'step', 'focus', 'habit', 'capture', 'routine', 'study', 'goal', 'assistant', 'review', 'challenge'];
 
 function weekDays() {
   const d = new Date();

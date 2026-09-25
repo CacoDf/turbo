@@ -4,10 +4,11 @@ import { CARS, levelInfo, xpForLevel, todayWins } from '../game.js';
 import { esc, uid } from '../util.js';
 import { carSvg, bar, toast, celebrate } from '../ui.js';
 import { rerender } from '../router.js';
+import { challengesCard } from '../challenges.js';
 
 let editRewards = false;
 
-const TYPE_EMOJI = { task: '✅', step: '👣', focus: '⏱️', habit: '🔁', capture: '🧠', routine: '🔄', money: '💸', mood: '⚡', study: '📚' };
+const TYPE_EMOJI = { task: '✅', step: '👣', focus: '⏱️', habit: '🔁', capture: '🧠', routine: '🔄', money: '💸', mood: '⚡', study: '📚', goal: '🎯', assistant: '🤖', review: '🧭', challenge: '🏁' };
 
 export function render() {
   const lv = levelInfo();
@@ -29,6 +30,9 @@ export function render() {
       <section class="card compact center"><div class="big-num">🛟 ${st.freezes}</div><div class="muted small">comodines</div></section>
     </div>
     <p class="muted small">Los comodines salvan tu racha si fallas un día. Ganas 1 por semana (máx. 2).</p>
+
+    ${challengesCard()}
+    ${state.trophies.length ? `<section class="card compact"><div class="label">TROFEOS</div>${state.trophies.map(t => `<span class="chip">🏆 ${esc(t.theme)}</span>`).join(' ')}</section>` : ''}
 
     <h3 class="group">Tienda de premios <button class="link inline" data-act="rewEdit">${editRewards ? 'Listo' : 'Editar'}</button></h3>
     ${state.rewards.map(r => `<div class="card reward row between">

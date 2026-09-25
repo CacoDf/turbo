@@ -16,16 +16,23 @@ export const KINDS = {
   entreno: { label: 'Entreno', emoji: '🏋️' },
   pega: { label: 'Pega', emoji: '💼' },
   otro: { label: 'Otro', emoji: '📌' },
+  cal: { label: 'Calendario', emoji: '📅' },
 };
 
-// Bloques del horario para un día concreto, con fechas reales de inicio y fin.
+// Bloques de un día concreto, con fechas reales de inicio y fin: horario semanal,
+// eventos de una sola vez y eventos importados del calendario.
 export function blocksFor(date) {
   const dow = date.getDay();
-  return state.schedule
-    .filter(b => b.days.includes(dow))
+  const k = dayKey(date);
+  const own = state.schedule.filter(b => (b.date ? b.date === k : b.days.includes(dow)));
+  const ext = (state.extEvents || []).filter(e => e.date === k && !e.allDay && e.start && e.end)
+    .map(e => ({ id: `ext-${k}-${e.start}-${e.title}`.replace(/\W+/g, ''), title: e.title, kind: 'cal', start: e.start, end: e.end, ext: true }));
+  return [...own, ...ext]
     .map(b => ({ ...b, startAt: atTime(date, b.start), endAt: atTime(date, b.end) }))
     .sort((a, b) => a.startAt - b.startAt);
 }
+
+export const allDayFor = date => (state.extEvents || []).filter(e => e.date === dayKey(date) && e.allDay);
 
 // Qué está pasando ahora y qué viene (busca hasta 7 días adelante).
 export function nowAndNext(now = new Date()) {
@@ -177,7 +184,7 @@ export function computeReminders() {
     const morning = atTime(day, s.morningAt).getTime();
     if (morning > now && morning < horizon) {
       const n = openTasks().length;
-      out.push({ id: `morning-${dayKey(day)}`, at: morning, title: '☀️ Buenos días', body: n ? `Tienes ${n} cosas anotadas. Abre Turbo y parte con una sola.` : 'Vacía la cabeza: anota lo que tengas pendiente hoy.' });
+      out.push({ id: `morning-${dayKey(day)}`, at: morning, title: '☀️ Buenos días', body: n ? `Tienes ${n} cosas anotadas. Cuéntale a tu secretaria qué más tienes hoy.` : 'Tu secretaria te espera: cuéntale qué tienes hoy (1 minuto).' });
     }
     const habitsAt = atTime(day, s.habitsAt).getTime();
     if (habitsAt > now && habitsAt < horizon) {
@@ -193,6 +200,13 @@ export function computeReminders() {
       const at = atTime(day, r.at).getTime();
       if (at > now && at < horizon) out.push({ id: `rt-${r.id}-${dayKey(day)}`, at, title: `${r.emoji} Rutina de ${r.name}`, body: `${r.steps.length} pasos. Abre Turbo y sigue uno a la vez.` });
     }
+  }
+  // Revisión semanal: domingo a la hora elegida.
+  for (let i = 0; i < 2; i++) {
+    const day = addDays(new Date(), i);
+    if (day.getDay() !== 0) continue;
+    const at = atTime(day, s.reviewAt || '19:00').getTime();
+    if (at > now && at < horizon) out.push({ id: `review-${dayKey(day)}`, at, title: '🧭 Revisión semanal (5 min)', body: 'Mira cómo te fue y elige tus 3 prioridades de la semana.' });
   }
   const tomorrow = dayKey(addDays(new Date(), 1));
   for (const e of state.exams || []) {

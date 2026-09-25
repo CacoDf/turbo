@@ -1,10 +1,11 @@
 // Service worker: permite abrir Turbo sin internet y recibir notificaciones.
-const CACHE = 'turbo-v2';
+const CACHE = 'turbo-v3';
 const SHELL = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest',
   '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js',
   '/js/views/home.js', '/js/views/focus.js', '/js/views/capture.js', '/js/views/tasks.js', '/js/views/habits.js',
   '/js/views/day.js', '/js/views/garage.js', '/js/views/shield.js', '/js/views/settings.js',
+  '/js/views/assistant.js', '/js/views/goals.js', '/js/views/review.js', '/js/calendar.js', '/js/challenges.js',
   '/js/views/more.js', '/js/views/routines.js', '/js/views/money.js', '/js/views/mood.js', '/js/views/studies.js', '/js/views/partner.js',
   '/icons/icon-192.png', '/icons/apple-touch-icon.png',
 ];
@@ -36,6 +37,19 @@ self.addEventListener('fetch', e => {
   );
 });
 
+// A dónde lleva cada tipo de aviso al tocarlo.
+function urlForTag(tag) {
+  tag = tag || '';
+  if (tag.startsWith('morning')) return '/#/secretaria';
+  if (tag.startsWith('review')) return '/#/revision';
+  if (tag.startsWith('habits')) return '/#/habitos';
+  if (tag.startsWith('rt-')) return '/#/rutinas';
+  if (tag.startsWith('exam')) return '/#/estudios';
+  if (tag.startsWith('cheer')) return '/#/pareja';
+  if (tag === 'focus-end') return '/#/foco';
+  return '/';
+}
+
 // El servidor manda un "push" vacío; aquí se piden los mensajes pendientes y se muestran.
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
@@ -51,7 +65,7 @@ self.addEventListener('push', e => {
       tag: m.tag || undefined,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      data: { url: m.url || '/' },
+      data: { url: m.url || urlForTag(m.tag) },
     })));
   })());
 });

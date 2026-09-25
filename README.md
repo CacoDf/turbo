@@ -6,6 +6,8 @@ Tu copiloto para arrancar, terminar y ordenar el día. Hecha a medida, gratis y 
 
 **Fase 2:** Rutinas paso a paso, Plata (gastos, hormiga, "¿Lo necesito?" con espera de 24 h, presupuesto), Ánimo y energía (check-in y patrones; la tarea sugerida se ajusta a tu energía), Estudios (ramos, pruebas y plan de sesiones hacia atrás con IA) y Pareja (link de solo lectura en `/pareja.html` + mensajes de ánimo como notificación).
 
+**Fase 3:** Secretaria (chat con IA que anota tareas, eventos, gastos, hábitos, pruebas y metas), entrevista de la mañana, Metas (pasos semanales con IA), Revisión semanal (domingo, 3 prioridades), Desafíos mensuales con trofeo y Calendario en ambas direcciones (feed `.ics` para iPhone/Google + importación de la dirección secreta iCal de Google Calendar).
+
 ---
 
 ## Instalación (una sola vez, ~20 min)

@@ -4,6 +4,7 @@ import { esc, dayKey } from '../util.js';
 import { toast } from '../ui.js';
 import { ping, enablePush, testPush, pushSupport, pullBackup, scheduleBackup, scheduleReminderSync, hasServer } from '../api.js';
 import { rerender } from '../router.js';
+import { calendarCard } from '../calendar.js';
 
 export function render() {
   const s = state.settings;
@@ -27,7 +28,10 @@ export function render() {
         <input class="input" type="number" min="0" max="120" step="5" value="${s.remindBefore}" data-change="setField" data-f="remindBefore"></label>
       <label class="muted small">Buenos días a las <input class="input" type="time" value="${s.morningAt}" data-change="setField" data-f="morningAt"></label>
       <label class="muted small">Revisar hábitos a las <input class="input" type="time" value="${s.habitsAt}" data-change="setField" data-f="habitsAt"></label>
+      <label class="muted small">Revisión semanal (domingos) a las <input class="input" type="time" value="${s.reviewAt}" data-change="setField" data-f="reviewAt"></label>
     </section>
+
+    ${calendarCard()}
 
     <section class="card">
       <h3>💾 Respaldo</h3>
@@ -41,7 +45,7 @@ export function render() {
 
     <section class="card">
       <h3>ℹ️ Turbo</h3>
-      <p class="muted small">Versión 2.0 · Fase 2. Hecha a tu medida.</p>
+      <p class="muted small">Versión 3.0 · Fase 3. Hecha a tu medida.</p>
       <button class="btn danger ghost small" data-act="setReset">Borrar todo y empezar de cero</button>
     </section>`;
 }

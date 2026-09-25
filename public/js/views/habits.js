@@ -46,7 +46,7 @@ export function render() {
     </section>` : ''}`;
 }
 
-function setCount(id, n) {
+export function setCount(id, n) {
   const h = state.habits.find(x => x.id === id);
   const k = dayKey();
   const before = state.habitLog[k]?.[id] || 0;

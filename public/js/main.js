@@ -5,6 +5,7 @@ import { closeSheet, unlockAudio } from './ui.js';
 import { setRenderer, route } from './router.js';
 import { pullBackup, scheduleBackup, scheduleReminderSync } from './api.js';
 import { schedulePartnerSync, refreshCheers } from './views/partner.js';
+import { refreshExternal } from './calendar.js';
 import * as home from './views/home.js';
 import * as focus from './views/focus.js';
 import * as capture from './views/capture.js';
@@ -20,22 +21,28 @@ import * as money from './views/money.js';
 import * as mood from './views/mood.js';
 import * as studies from './views/studies.js';
 import * as partner from './views/partner.js';
+import * as assistant from './views/assistant.js';
+import * as goals from './views/goals.js';
+import * as review from './views/review.js';
+import * as calendar from './calendar.js';
+import * as challenges from './challenges.js';
 
 const VIEWS = {
   ahora: home, foco: focus, capturar: capture, tareas: tasks, habitos: habits, dia: day, mas: more,
   garage, escudo: shield, ajustes: settings, rutinas: routines, plata: money, animo: mood, estudios: studies, pareja: partner,
+  secretaria: assistant, metas: goals, revision: review,
 };
-const ACTIONS = Object.assign({ closeSheet }, ...Object.values(VIEWS).map(v => v.actions || {}));
+const ACTIONS = Object.assign({ closeSheet }, ...[...Object.values(VIEWS), calendar, challenges].map(v => v.actions || {}));
 
 const NAV = [
   ['ahora', '🏁', 'Ahora'],
-  ['tareas', '📋', 'Tareas'],
+  ['secretaria', '🤖', 'Secretaria'],
   ['habitos', '🔁', 'Hábitos'],
   ['dia', '🗓️', 'Día'],
   ['mas', '➕', 'Más'],
 ];
 // Pantallas que viven dentro de "Más" (para marcar esa pestaña).
-const UNDER_MORE = ['garage', 'escudo', 'ajustes', 'rutinas', 'plata', 'animo', 'estudios', 'pareja'];
+const UNDER_MORE = ['garage', 'escudo', 'ajustes', 'rutinas', 'plata', 'animo', 'estudios', 'pareja', 'tareas', 'metas', 'revision', 'capturar'];
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -102,6 +109,7 @@ document.addEventListener('visibilitychange', () => {
   checkStreak();
   pullBackup();
   refreshCheers();
+  refreshExternal();
   scheduleReminderSync();
   queueRender();
 });
@@ -116,6 +124,7 @@ async function boot() {
   scheduleReminderSync();
   scheduleBackup();
   refreshCheers();
+  refreshExternal();
 }
 
 boot();

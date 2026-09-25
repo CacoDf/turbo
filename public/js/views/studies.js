@@ -100,7 +100,7 @@ function fallbackTopics(kind, n) {
   });
 }
 
-async function plan(examId) {
+export async function plan(examId) {
   const e = state.exams.find(x => x.id === examId);
   const c = course(e.courseId);
   const days = studyDays(e.date);

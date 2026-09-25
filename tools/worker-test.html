@@ -151,6 +151,63 @@ await req('POST', 'share/disable');
 r = await share('GET', 'share/view', TOKEN);
 log(r.status === 404, 'pareja: link desactivado → 404', r.status);
 
+// ---- Fase 3 ----
+geminiReply = { reply: 'Anotado', actions: [{ type: 'add_task', title: 'Pagar la luz' }, { type: 'volar', title: 'x' }] };
+j = await (await req('POST', 'ai/assistant', { messages: [{ role: 'user', text: 'pagar la luz' }], context: { hoy: 'viernes' } })).json();
+log(j.reply === 'Anotado' && j.actions.length === 1 && j.actions[0].type === 'add_task', 'secretaria: filtra acciones inválidas', JSON.stringify(j));
+geminiReply = { tasks: [{ title: 'Actualizar CV', minutes: 90, day: 9 }] };
+j = await (await req('POST', 'ai/goalweek', { goal: { title: 'Pega' } })).json();
+log(j.tasks[0].minutes === 60 && j.tasks[0].day === 6, 'metas: normaliza minutos y día', JSON.stringify(j.tasks));
+geminiReply = { highlights: ['a', 'b'], insight: 'i', priorities: ['1', '2', '3', '4'], message: 'm' };
+j = await (await req('POST', 'ai/review', { stats: {}, answers: {} })).json();
+log(j.priorities.length === 3 && j.insight === 'i', 'revisión semanal');
+
+// Calendario: exportar
+const CAL = 'c'.repeat(36);
+r = await worker.fetch(new Request(`https://turbo.test/api/calendar/${CAL}.ics`), env);
+log(r.status === 404, 'calendario: sin activar → 404', r.status);
+await req('POST', 'calendar/enable', { token: CAL });
+await req('PUT', 'state', { updatedAt: 999, state: {
+  schedule: [{ id: 's1', title: 'Clases', kind: 'clase', days: [2, 3], start: '08:30', end: '11:30' }, { id: 's2', title: 'Dentista, control', kind: 'otro', days: [], date: '2026-09-28', start: '17:00', end: '18:00' }],
+  exams: [{ id: 'e1', title: 'Prueba 2', date: '2026-09-30', courseId: 'c1' }], courses: [{ id: 'c1', name: 'Finanzas' }],
+  tasks: [{ id: 't1', title: 'Pagar la luz', due: '2026-09-26', done: false }, { id: 't2', title: 'Hecha', due: '2026-09-26', done: true }],
+} });
+r = await worker.fetch(new Request(`https://turbo.test/api/calendar/${CAL}.ics`), env);
+const ics = await r.text();
+log(r.ok && r.headers.get('content-type').startsWith('text/calendar'), 'calendario: responde .ics');
+log(ics.includes('RRULE:FREQ=WEEKLY;BYDAY=TU,WE') && ics.includes('T083000'), 'calendario: clases semanales');
+log(ics.includes('SUMMARY:📌 Dentista\\, control') && ics.includes('DTSTART:20260928T170000'), 'calendario: evento de una vez (con coma escapada)');
+log(ics.includes('📚 Prueba 2 (Finanzas)') && ics.includes('DTSTART;VALUE=DATE:20260930'), 'calendario: prueba de día completo');
+log(ics.includes('☐ Pagar la luz') && !ics.includes('Hecha'), 'calendario: tareas pendientes (no las hechas)');
+
+// Calendario: importar desde Google
+const today = new Date();
+const ymd = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+const plus = n => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+const googleIcs = ['BEGIN:VCALENDAR', 'VERSION:2.0',
+  'BEGIN:VEVENT', 'UID:a1', `DTSTART;TZID=America/Santiago:${ymd(plus(1))}T170000`, `DTEND;TZID=America/Santiago:${ymd(plus(1))}T180000`, 'SUMMARY:Dentista', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:a2', `DTSTART:${ymd(plus(2))}T150000Z`, `DTEND:${ymd(plus(2))}T160000Z`, 'SUMMARY:Llamada (UTC)', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:a3', `DTSTART;VALUE=DATE:${ymd(plus(3))}`, `DTEND;VALUE=DATE:${ymd(plus(4))}`, 'SUMMARY:Cumple de la polola', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:a4', `DTSTART;TZID=America/Santiago:${ymd(plus(0))}T190000`, `DTEND;TZID=America/Santiago:${ymd(plus(0))}T203000`,
+  'RRULE:FREQ=DAILY;COUNT=5', `EXDATE;TZID=America/Santiago:${ymd(plus(2))}T190000`, 'SUMMARY:Gym diario', 'END:VEVENT',
+  'BEGIN:VEVENT', 'UID:a5', `DTSTART:${ymd(plus(1))}T120000`, 'STATUS:CANCELLED', 'SUMMARY:Cancelado', 'END:VEVENT',
+  'END:VCALENDAR'].join('\r\n');
+const fetchBefore = window.fetch;
+window.fetch = async (url, init) => String(url) === 'https://ics.test/basic.ics' ? new Response(googleIcs, { status: 200 }) : fetchBefore(url, init);
+j = await (await req('PUT', 'calendar/import-url', { url: 'webcal://ics.test/basic.ics' })).json();
+const byTitle = t => j.events.filter(e => e.title === t);
+log(byTitle('Dentista')[0]?.start === '17:00' && byTitle('Dentista')[0]?.end === '18:00', 'importar: evento con hora local', JSON.stringify(byTitle('Dentista')));
+const utcStart = byTitle('Llamada (UTC)')[0]?.start;
+log(utcStart === '12:00' || utcStart === '11:00', 'importar: hora UTC convertida a Chile', utcStart);
+log(byTitle('Cumple de la polola')[0]?.allDay === true, 'importar: evento de día completo');
+log(byTitle('Gym diario').length === 4, 'importar: repetición diaria con fecha excluida', byTitle('Gym diario').length);
+log(!byTitle('Cancelado').length, 'importar: ignora cancelados');
+j = await (await req('GET', 'calendar/import')).json();
+log(j.connected && j.events.length >= 7, 'importar: se recuerda el link', j.events.length);
+r = await req('PUT', 'calendar/import-url', { url: 'ftp://malo' });
+log(r.status === 400, 'importar: link inválido → 400', r.status);
+window.fetch = fetchBefore;
+
 lines.push('', failures ? `${failures} FALLARON` : 'TODO OK');
 out.textContent = lines.join('\n');
 </script>

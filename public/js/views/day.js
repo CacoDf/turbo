@@ -1,7 +1,7 @@
 // Tu día en una línea: horario fijo, la hora actual y cuánto falta para lo siguiente.
 import { state, update } from '../store.js';
-import { blocksFor, KINDS, AREAS, nowAndNext } from '../planner.js';
-import { esc, addDays, dayKey, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
+import { blocksFor, allDayFor, KINDS, AREAS, nowAndNext } from '../planner.js';
+import { esc, addDays, dayKey, parseDayKey, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
 import { toast } from '../ui.js';
 import { scheduleReminderSync } from '../api.js';
 import { rerender } from '../router.js';
@@ -30,20 +30,27 @@ function timeline(date) {
 function dueList(date) {
   const k = dayKey(date);
   const list = state.tasks.filter(t => !t.done && (t.due === k || (offset === 0 && t.today && !t.due)));
-  if (!list.length) return '';
-  return `<section class="card compact"><div class="label">PARA ESTE DÍA</div>${list.map(t => `<div>${AREAS[t.area]?.emoji || '✨'} ${esc(t.title)} <span class="muted small">· ${fmtDuration(t.minutes)}</span></div>`).join('')}</section>`;
+  const allDay = allDayFor(date);
+  const exams = state.exams.filter(e => !e.done && e.date === k);
+  if (!list.length && !allDay.length && !exams.length) return '';
+  return `<section class="card compact"><div class="label">PARA ESTE DÍA</div>
+    ${exams.map(e => `<div>📚 <b>${esc(e.title)}</b></div>`).join('')}
+    ${allDay.map(e => `<div>📅 ${esc(e.title)}</div>`).join('')}
+    ${list.map(t => `<div>${AREAS[t.area]?.emoji || '✨'} ${esc(t.title)} <span class="muted small">· ${fmtDuration(t.minutes)}</span></div>`).join('')}</section>`;
 }
 
 function editor() {
   const kinds = Object.entries(KINDS).map(([k, v]) => `<option value="${k}">${v.emoji} ${v.label}</option>`).join('');
   return `<section class="card">
     <h3>Tu horario fijo</h3>
-    ${state.schedule.map(b => `<div class="row between sched-row">
-      <span>${KINDS[b.kind]?.emoji || ''} <b>${esc(b.title)}</b> <span class="muted small">${b.days.map(d => DAY_SHORT[d]).join(', ')} · ${b.start}–${b.end}</span></span>
+    ${state.schedule.filter(b => !b.date || b.date >= dayKey()).map(b => `<div class="row between sched-row">
+      <span>${KINDS[b.kind]?.emoji || ''} <b>${esc(b.title)}</b> <span class="muted small">${b.date ? `${DAY_SHORT[parseDayKey(b.date).getDay()]} ${parseDayKey(b.date).getDate()}/${parseDayKey(b.date).getMonth() + 1} (una vez)` : b.days.map(d => DAY_SHORT[d]).join(', ')} · ${b.start}–${b.end}</span></span>
       <button class="icon-btn" data-act="dayDel" data-id="${b.id}" aria-label="Borrar">✕</button></div>`).join('') || '<p class="muted">Sin bloques todavía.</p>'}
     <h3>Agregar bloque</h3>
     <div class="row"><input class="input grow" id="bTitle" placeholder="ej: Gym"><select class="input" id="bKind">${kinds}</select></div>
+    <div class="muted small">Se repite cada semana los días:</div>
     <div class="days">${[1, 2, 3, 4, 5, 6, 0].map(d => `<label><input type="checkbox" value="${d}" class="bDay"><span>${DAY_SHORT[d]}</span></label>`).join('')}</div>
+    <label class="muted small">…o solo una vez, el día <input class="input" type="date" id="bDate" min="${dayKey()}"></label>
     <div class="row"><label class="grow muted small">Desde <input class="input" type="time" id="bStart" value="18:00"></label><label class="grow muted small">Hasta <input class="input" type="time" id="bEnd" value="19:30"></label></div>
     <button class="btn" data-act="dayAdd">Agregar al horario</button>
   </section>`;
@@ -92,12 +99,13 @@ export const actions = {
   dayAdd: () => {
     const title = document.getElementById('bTitle').value.trim();
     const kind = document.getElementById('bKind').value;
-    const days = [...document.querySelectorAll('.bDay:checked')].map(i => Number(i.value));
+    const date = document.getElementById('bDate').value || null;
+    const days = date ? [] : [...document.querySelectorAll('.bDay:checked')].map(i => Number(i.value));
     const start = document.getElementById('bStart').value;
     const end = document.getElementById('bEnd').value;
-    if (!title || !days.length || !start || !end) return toast('Falta nombre, días u horas');
+    if (!title || (!days.length && !date) || !start || !end) return toast('Falta nombre, días (o fecha) u horas');
     if (hmToMin(end) <= hmToMin(start)) return toast('La hora de término debe ser después del inicio');
-    update(s => { s.schedule.push({ id: uid(), title, kind, days, start, end }); });
+    update(s => { s.schedule.push({ id: uid(), title, kind, days, date, start, end }); });
     scheduleReminderSync();
     toast('Bloque agregado');
   },

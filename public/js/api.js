@@ -36,6 +36,16 @@ export async function aiStudyPlan(info) {
   return sessions;
 }
 
+export const aiAssistant = (messages, context) => call('ai/assistant', { method: 'POST', body: { messages, context } });
+export const aiGoalWeek = body => call('ai/goalweek', { method: 'POST', body }).then(r => r.tasks);
+export const aiReview = body => call('ai/review', { method: 'POST', body });
+
+// ---- Calendario ----
+
+export const calendarEnable = token => call('calendar/enable', { method: 'POST', body: { token } });
+export const calendarImportSet = url => call('calendar/import-url', { method: 'PUT', body: { url } });
+export const calendarImportGet = () => call('calendar/import');
+
 // ---- Modo pareja ----
 
 export const shareEnable = token => call('share/enable', { method: 'POST', body: { token } });
