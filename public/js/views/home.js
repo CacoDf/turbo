@@ -1,6 +1,6 @@
 // Pantalla "Ahora": una sola tarea, un solo paso, un botón para arrancar.
 import { state, update } from '../store.js';
-import { suggestTask, nextStep, nowAndNext, AREAS, KINDS } from '../planner.js';
+import { suggestTask, nextStep, nowAndNext, blocksFor, AREAS, KINDS } from '../planner.js';
 import { levelInfo, todayWins, habitsDoneToday } from '../game.js';
 import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, DAY_SHORT } from '../util.js';
 import { bar, carSvg } from '../ui.js';
@@ -13,6 +13,26 @@ import { needsInterview } from './assistant.js';
 import { weekFocusCard } from './review.js';
 
 let skipIds = [];
+
+// Evento de Google Calendar en curso (o que empieza en ≤15 min): se convierte en foco con un toque.
+function calendarNow() {
+  const now = new Date();
+  const ev = blocksFor(now).find(b => b.ext && b.startAt - now <= 15 * 60000 && b.endAt > now);
+  if (!ev) return { html: '', running: false };
+  const running = ev.startAt <= now;
+  const leftMin = (ev.endAt - now) / 60000;
+  const min = Math.max(5, Math.min(25, Math.round(leftMin)));
+  return {
+    running,
+    html: `<section class="card now cal-now">
+      <div class="label">📅 ${running ? 'AHORA EN TU CALENDARIO' : `EMPIEZA EN ${fmtDuration((ev.startAt - now) / 60000).toUpperCase()}`}</div>
+      <h2 class="task-title">${esc(ev.title)}</h2>
+      <div class="chips"><span class="chip">${ev.start}–${ev.end}</span>${running ? `<span class="chip">quedan ${fmtDuration(leftMin)}</span>` : ''}</div>
+      <button class="btn huge" data-act="homeCalFocus" data-title="${esc(ev.title)}" data-min="${min}">▶ ${min} min de foco</button>
+      <p class="muted tiny">Bloque largo = varias vueltas de 25 min con 5 de descanso. Al terminar una, "Sigo 15 min más" o partes otra.</p>
+    </section>`,
+  };
+}
 
 // Como mucho UNA tarjeta extra, para no llenar la pantalla: ánimo recibido > rutina > check-in.
 function extraCard() {
@@ -119,6 +139,7 @@ function taskCard() {
 
 export function render() {
   const lv = levelInfo();
+  const cal = calendarNow();
   const wins = todayWins().filter(w => w.type !== 'shield').length;
   const hb = habitsDoneToday();
   return `
@@ -136,7 +157,8 @@ export function render() {
   ${onboarding()}
   ${state.focus ? '' : extraCard()}
   ${focusCard()}
-  ${state.focus ? '' : taskCard()}
+  ${state.focus ? '' : cal.html}
+  ${state.focus || cal.running ? '' : taskCard()}
   <section class="card compact" data-act="go" data-to="habitos">
     <div class="row between"><span>Hábitos hoy</span><b>${hb.done}/${hb.total}</b></div>
     ${bar(hb.total ? hb.done / hb.total : 0, 'var(--good)')}
@@ -164,6 +186,7 @@ export const actions = {
   homeOnboarded: () => update(s => { s.meta.onboarded = true; }),
   homeStart: el => startFocus(el.dataset.id, Number(el.dataset.min)),
   homeFree: () => startFocus(null, 5),
+  homeCalFocus: el => startFocus(null, Number(el.dataset.min), el.dataset.title),
   homeCheerSeen: () => update(s => { s.partner.seenCheers = s.partner.cheers.length; }),
   homeRoutine: el => {
     startRoutine(el.dataset.id);

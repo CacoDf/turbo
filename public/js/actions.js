@@ -93,9 +93,9 @@ export function deleteTask(id) {
   scheduleReminderSync();
 }
 
-export function startFocus(taskId, minutes) {
+export function startFocus(taskId, minutes, label = null) {
   update(s => {
-    s.focus = { taskId, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0 };
+    s.focus = { taskId, label, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0 };
     if (taskId) s.currentTaskId = taskId;
   });
   reward(XP.focusStart, 'focus', 'Arrancaste 🚦');

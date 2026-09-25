@@ -33,11 +33,11 @@ function context() {
   const now = new Date();
   const k = dayKey();
   const log = state.habitLog[k] || {};
-  const next7 = Array.from({ length: 7 }, (_, i) => addDays(now, i));
+  const next14 = Array.from({ length: 14 }, (_, i) => addDays(now, i));
   return {
     hoy: `${DAY_NAMES[now.getDay()]} ${k}`,
     hora: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
-    agenda_7_dias: next7.flatMap(d => blocksFor(d).map(b => `${dayKey(d)} ${b.start}-${b.end} ${b.title}`)).slice(0, 40),
+    agenda_14_dias: next14.flatMap(d => blocksFor(d).map(b => `${dayKey(d)} ${b.start}-${b.end} ${b.title}`)).slice(0, 70),
     tareas_pendientes: openTasks().slice(0, 30).map(t => `${t.title}${t.due ? ` (vence ${t.due})` : ''}`),
     habitos: state.habits.filter(h => !h.archived).map(h => `${h.emoji} ${h.name} (${log[h.id] || 0}/${h.target} hoy)`),
     rutinas: state.routines.map(r => r.name),

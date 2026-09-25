@@ -33,7 +33,7 @@ export function render() {
   const total = f.endAt - f.start;
   const pct = Math.min(1, (Date.now() - f.start) / total);
   return `<div class="focus-screen">
-    <div class="muted center">${t ? esc(t.title) : 'Sesión libre'}</div>
+    <div class="muted center">${t ? esc(t.title) : f.label ? esc(f.label) : 'Sesión libre'}</div>
     <div class="center">${ring(1 - pct, { size: 270, inner: `<div class="clock" id="focusClock">${fmtClock(f.endAt - Date.now())}</div><div class="muted small">de ${fmtDuration(f.plannedMin)}</div>` })}</div>
     <div class="bubble" id="focusBubble">${pick(COMPANION)}</div>
     ${step ? `<button class="step" data-act="focusStep" data-task="${t.id}" data-step="${step.id}"><span class="check"></span><span><b>Ahora:</b> ${esc(step.text)}</span></button>` : ''}

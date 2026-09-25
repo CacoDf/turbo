@@ -41,7 +41,7 @@ export function calendarCard() {
       <button class="btn" data-act="calEnable">Activar</button>`}
 
     <div class="label" style="margin-top:16px">TU GOOGLE CALENDAR EN TURBO</div>
-    ${c.importOn ? `<p class="small">🟢 Conectado · ${state.extEvents.length} eventos en las próximas 3 semanas</p>
+    ${c.importOn ? `<p class="small">🟢 Conectado · ${state.extEvents.length} eventos en los próximos 2 meses</p>
       <div class="row"><button class="btn ghost" data-act="calRefresh">Actualizar ahora</button><button class="btn danger ghost" data-act="calImportOff">Desconectar</button></div>`
       : `<p class="muted small">Lo que anotes en Google Calendar aparece en Turbo (en Día, en los avisos y para tu secretaria).</p>
       <details class="small"><summary><b>Paso a paso para sacar el link</b></summary>

@@ -572,7 +572,7 @@ async function calendarFeed(env, token) {
 }
 
 // Lee un calendario .ics (p. ej. la "dirección secreta" de Google Calendar) y devuelve
-// los eventos de los próximos 21 días en hora de Chile.
+// los eventos de los próximos 60 días en hora de Chile.
 async function importCalendar(url) {
   const res = await fetch(url, { headers: { Accept: 'text/calendar' } });
   if (!res.ok) fail(502, `No se pudo leer el calendario (${res.status}). Revisa que sea la dirección secreta en formato iCal.`);
@@ -597,7 +597,7 @@ function parseIcsDate(value, params = '') {
 function parseIcs(text, from = null, to = null) {
   const now = santiagoParts();
   const start = from ?? dayNum(now.y, now.m, now.d) - 1;
-  const end = to ?? start + 22;
+  const end = to ?? start + 61;
   const raw = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
   const events = [];
   let cur = null;
