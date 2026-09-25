@@ -104,6 +104,7 @@ button { font: inherit; color: inherit; }
   transition: transform .08s ease, opacity .15s;
 }
 .btn:active { transform: scale(.97); }
+a.btn { text-decoration: none; }
 .btn:disabled { opacity: .5; }
 .btn.huge { min-height: 64px; font-size: 20px; border-radius: 18px; }
 .btn.small { min-height: 38px; padding: 8px 12px; font-size: 14px; width: auto; margin: 0; }
