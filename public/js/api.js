@@ -44,7 +44,7 @@ export const aiReview = body => call('ai/review', { method: 'POST', body });
 
 export const calendarEnable = token => call('calendar/enable', { method: 'POST', body: { token } });
 export const calendarImportSet = url => call('calendar/import-url', { method: 'PUT', body: { url } });
-export const calendarImportGet = () => call('calendar/import');
+export const calendarImportGet = (force = false) => call(`calendar/import${force ? '?force=1' : ''}`);
 
 // ---- Modo pareja ----
 

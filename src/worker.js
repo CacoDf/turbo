@@ -165,9 +165,13 @@ async function api(request, env, url) {
       return json(await aiReview(env, body));
 
     case 'POST calendar/enable': {
+      // Si ya existe un link, se reutiliza: así no se rompe la suscripción de Google/iPhone
+      // cuando otro dispositivo vuelve a tocar "Activar".
+      const existing = await kvGet(env, 'calToken');
+      if (existing) return json({ ok: true, token: existing });
       if (!/^[a-f0-9]{24,64}$/.test(body?.token || '')) fail(400, 'Token inválido');
       await kvSet(env, 'calToken', body.token);
-      return json({ ok: true });
+      return json({ ok: true, token: body.token });
     }
 
     case 'PUT calendar/import-url': {
@@ -179,12 +183,25 @@ async function api(request, env, url) {
       if (!/^https:\/\/\S+$/.test(u)) fail(400, 'Ese link no parece válido. Debe empezar con https://');
       const events = await importCalendar(u);
       await kvSet(env, 'importIcs', u);
+      await kvSet(env, 'importCache', { url: u, t: Date.now(), events });
       return json({ ok: true, events });
     }
 
     case 'GET calendar/import': {
       const u = await kvGet(env, 'importIcs');
-      return json({ events: u ? await importCalendar(u) : [], connected: !!u });
+      if (!u) return json({ events: [], connected: false });
+      // Se guarda lo último leído 10 min: menos trabajo y, si Google falla, igual hay datos.
+      const cache = await kvGet(env, 'importCache');
+      const fresh = cache && cache.url === u && Date.now() - cache.t < 10 * 60000;
+      if (fresh && !url.searchParams.has('force')) return json({ events: cache.events, connected: true, cachedAt: cache.t });
+      try {
+        const events = await importCalendar(u);
+        await kvSet(env, 'importCache', { url: u, t: Date.now(), events });
+        return json({ events, connected: true, cachedAt: Date.now() });
+      } catch (e) {
+        if (cache?.url === u) return json({ events: cache.events, connected: true, cachedAt: cache.t, error: e.message });
+        throw e;
+      }
     }
 
     case 'GET push/key':
@@ -500,9 +517,12 @@ const pad = n => String(n).padStart(2, '0');
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 // Fecha y hora "de pared" en Chile para un instante dado.
+// El formateador se crea una sola vez: crearlo es caro y el plan gratis da ~10 ms de CPU.
+let santiagoFmt = null;
 function santiagoParts(date = new Date()) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-    .formatToParts(date).map(x => [x.type, x.value]));
+  santiagoFmt = santiagoFmt || new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const p = {};
+  for (const x of santiagoFmt.formatToParts(date)) p[x.type] = x.value;
   return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour, mm: +p.minute };
 }
 
@@ -598,29 +618,54 @@ function parseIcs(text, from = null, to = null) {
   const now = santiagoParts();
   const start = from ?? dayNum(now.y, now.m, now.d) - 1;
   const end = to ?? start + 61;
-  const raw = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
+  // Día aproximado (sin convertir zona) para descartar rápido lo que está lejos de la ventana.
+  const rough = v => {
+    const m = /^(\d{4})(\d{2})(\d{2})/.exec(v || '');
+    return m ? dayNum(+m[1], +m[2], +m[3]) : null;
+  };
+  const near = d => d != null && d >= start - 2 && d <= end + 2;
+  const raw = text.replace(/\r?\n[ \t]/g, '').split(/\r?\n/);
   const events = [];
   let cur = null;
   for (const line of raw) {
-    if (line === 'BEGIN:VEVENT') cur = { exdates: [] };
-    else if (line === 'END:VEVENT') {
-      if (cur) events.push(cur);
-      cur = null;
-    } else if (cur) {
-      const i = line.indexOf(':');
-      if (i < 0) continue;
-      const [name, ...params] = line.slice(0, i).split(';');
-      const value = line.slice(i + 1);
-      const p = params.join(';');
-      if (name === 'SUMMARY') cur.title = value.replace(/\\n/g, ' ').replace(/\\([,;\\])/g, '$1');
-      else if (name === 'DTSTART') cur.start = parseIcsDate(value, p);
-      else if (name === 'DTEND') cur.end = parseIcsDate(value, p);
-      else if (name === 'RRULE') cur.rrule = Object.fromEntries(value.split(';').map(kv => kv.split('=')));
-      else if (name === 'EXDATE') value.split(',').forEach(v => { const x = parseIcsDate(v, p); if (x) cur.exdates.push(`${x.day}-${x.min}`); });
-      else if (name === 'RECURRENCE-ID') cur.recurrenceId = parseIcsDate(value, p);
-      else if (name === 'STATUS') cur.status = value;
-      else if (name === 'UID') cur.uid = value;
+    if (line === 'BEGIN:VEVENT') {
+      cur = { exRaw: [] };
+      continue;
     }
+    if (line === 'END:VEVENT') {
+      const e = cur;
+      cur = null;
+      if (!e || !e.startRaw || e.status === 'CANCELLED') continue;
+      // Solo se procesa a fondo lo que puede caer en la ventana (el historial viejo se salta).
+      if (e.recurRaw) {
+        if (!near(rough(e.recurRaw)) && !near(rough(e.startRaw))) continue;
+      } else if (e.rrule) {
+        const until = e.rrule.UNTIL ? rough(e.rrule.UNTIL) : null;
+        if ((until != null && until < start - 2) || rough(e.startRaw) > end + 2) continue;
+      } else if (!near(rough(e.startRaw))) continue;
+      e.start = parseIcsDate(e.startRaw, e.startParams);
+      e.end = e.endRaw ? parseIcsDate(e.endRaw, e.endParams) : null;
+      if (e.recurRaw) e.recurrenceId = parseIcsDate(e.recurRaw, e.recurParams);
+      e.exdates = e.rrule ? e.exRaw.filter(([v]) => near(rough(v))).map(([v, pr]) => parseIcsDate(v, pr)).filter(Boolean).map(x => `${x.day}-${x.min}`) : [];
+      if (e.start) events.push(e);
+      continue;
+    }
+    if (!cur) continue;
+    const i = line.indexOf(':');
+    if (i < 0) continue;
+    const head = line.slice(0, i);
+    const semi = head.indexOf(';');
+    const name = semi < 0 ? head : head.slice(0, semi);
+    const params = semi < 0 ? '' : head.slice(semi + 1);
+    const value = line.slice(i + 1);
+    if (name === 'SUMMARY') cur.title = value.replace(/\\n/g, ' ').replace(/\\([,;\\])/g, '$1');
+    else if (name === 'DTSTART') { cur.startRaw = value; cur.startParams = params; }
+    else if (name === 'DTEND') { cur.endRaw = value; cur.endParams = params; }
+    else if (name === 'RRULE') cur.rrule = Object.fromEntries(value.split(';').map(kv => kv.split('=')));
+    else if (name === 'EXDATE') value.split(',').forEach(v => cur.exRaw.push([v, params]));
+    else if (name === 'RECURRENCE-ID') { cur.recurRaw = value; cur.recurParams = params; }
+    else if (name === 'STATUS') cur.status = value;
+    else if (name === 'UID') cur.uid = value;
   }
   // Las ediciones de una ocurrencia (RECURRENCE-ID) reemplazan a la original.
   const overridden = new Set(events.filter(e => e.recurrenceId).map(e => `${e.uid}|${e.recurrenceId.day}-${e.recurrenceId.min}`));
@@ -637,8 +682,8 @@ function parseIcs(text, from = null, to = null) {
       end: e.start.allDay ? null : `${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`,
     });
   };
+  const dowOf = day => (((day + 4) % 7) + 7) % 7; // 1970-01-01 fue jueves
   for (const e of events) {
-    if (!e.start || e.status === 'CANCELLED') continue;
     if (!e.rrule) {
       push(e, e.start.day);
       continue;
@@ -650,14 +695,20 @@ function parseIcs(text, from = null, to = null) {
     const byday = r.BYDAY ? r.BYDAY.split(',').map(x => BYDAY.indexOf(x.slice(-2))) : null;
     const s0 = fromDayNum(e.start.day);
     const week0 = e.start.day - s0.dow;
+    // Sin COUNT se puede saltar directo a la ventana; con COUNT hay que contar desde el inicio.
+    const first = count === Infinity ? Math.max(e.start.day, start - 1) : e.start.day;
+    const last = Math.min(end, until, first + 3700);
     let n = 0;
-    for (let day = e.start.day; day <= Math.min(end, until) && n < count && day < e.start.day + 3700; day++) {
-      const x = fromDayNum(day);
+    for (let day = first; day <= last && n < count; day++) {
       let hit = false;
       if (r.FREQ === 'DAILY') hit = (day - e.start.day) % interval === 0;
-      else if (r.FREQ === 'WEEKLY') hit = Math.floor((day - week0) / 7) % interval === 0 && (byday ? byday.includes(x.dow) : x.dow === s0.dow);
-      else if (r.FREQ === 'MONTHLY') hit = x.d === s0.d && ((x.y - s0.y) * 12 + x.m - s0.m) % interval === 0;
-      else if (r.FREQ === 'YEARLY') hit = x.d === s0.d && x.m === s0.m && (x.y - s0.y) % interval === 0;
+      else if (r.FREQ === 'WEEKLY') {
+        const dow = dowOf(day);
+        hit = Math.floor((day - week0) / 7) % interval === 0 && (byday ? byday.includes(dow) : dow === s0.dow);
+      } else if (r.FREQ === 'MONTHLY' || r.FREQ === 'YEARLY') {
+        const x = fromDayNum(day);
+        hit = x.d === s0.d && (r.FREQ === 'MONTHLY' ? ((x.y - s0.y) * 12 + x.m - s0.m) % interval === 0 : x.m === s0.m && (x.y - s0.y) % interval === 0);
+      }
       if (!hit) continue;
       n++;
       if (e.exdates.includes(`${day}-${e.start.min}`) || overridden.has(`${e.uid}|${day}-${e.start.min}`)) continue;

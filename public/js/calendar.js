@@ -10,19 +10,25 @@ const httpsLink = () => `${location.origin}${feedPath()}`;
 const webcalLink = () => `webcal://${location.host}${feedPath()}`;
 
 // Trae los eventos del calendario externo (como máximo cada 20 min, o si se fuerza).
+// Se le pregunta siempre al servidor (no a lo guardado en este aparato): él sabe si hay
+// calendario conectado, aunque se haya conectado desde otro dispositivo.
 export async function refreshExternal(force = false) {
-  if (!hasServer() || !state.calendar.importOn) return;
-  if (!force && Date.now() - state.calendar.lastImport < 20 * 60000) return;
+  if (!hasServer()) return;
+  if (!force && Date.now() - (state.calendar.lastImport || 0) < 20 * 60000) return;
   try {
-    const { events, connected } = await calendarImportGet();
+    const { events, connected, error } = await calendarImportGet(force);
     update(s => {
       s.extEvents = connected ? events : [];
       s.calendar.lastImport = Date.now();
-      if (!connected) s.calendar.importOn = false;
+      s.calendar.lastError = error || null;
+      s.calendar.importOn = !!connected;
     });
     scheduleReminderSync();
+    return { ok: !error, error };
   } catch (e) {
     console.warn('Calendario externo', e);
+    update(s => { s.calendar.lastError = e.message || 'Sin conexión con el servidor'; }, { silent: true });
+    return { ok: false, error: e.message };
   }
 }
 
@@ -41,7 +47,8 @@ export function calendarCard() {
       <button class="btn" data-act="calEnable">Activar</button>`}
 
     <div class="label" style="margin-top:16px">TU GOOGLE CALENDAR EN TURBO</div>
-    ${c.importOn ? `<p class="small">🟢 Conectado · ${state.extEvents.length} eventos en los próximos 2 meses</p>
+    ${c.importOn ? `<p class="small">${c.lastError ? '🟡' : '🟢'} Conectado · ${state.extEvents.length} eventos en los próximos 2 meses${c.lastImport ? ` · actualizado ${new Date(c.lastImport).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+      ${c.lastError ? `<p class="small warn-text">⚠️ Último intento falló: ${c.lastError.replace(/[<>&]/g, '')}</p>` : ''}
       <div class="row"><button class="btn ghost" data-act="calRefresh">Actualizar ahora</button><button class="btn danger ghost" data-act="calImportOff">Desconectar</button></div>`
       : `<p class="muted small">Lo que anotes en Google Calendar aparece en Turbo (en Día, en los avisos y para tu secretaria).</p>
       <details class="small"><summary><b>Paso a paso para sacar el link</b></summary>
@@ -62,8 +69,8 @@ export const actions = {
   calEnable: async () => {
     const token = Array.from(crypto.getRandomValues(new Uint8Array(18)), b => b.toString(16).padStart(2, '0')).join('');
     try {
-      await calendarEnable(token);
-      update(s => { s.calendar.token = token; });
+      const r = await calendarEnable(token);
+      update(s => { s.calendar.token = r.token || token; });
       toast('Listo. Ahora agrégalo a tu calendario 👇');
     } catch (e) {
       toast(`No se pudo: ${e.message}`);
@@ -97,9 +104,13 @@ export const actions = {
       el.textContent = 'Conectar';
     }
   },
-  calRefresh: async () => {
-    await refreshExternal(true);
-    toast(`${state.extEvents.length} eventos`);
+  calRefresh: async el => {
+    el.disabled = true;
+    el.textContent = 'Actualizando…';
+    const r = await refreshExternal(true);
+    toast(r?.ok ? `🟢 ${state.extEvents.length} eventos actualizados` : `No se pudo actualizar: ${r?.error || 'error desconocido'}`);
+    el.disabled = false;
+    el.textContent = 'Actualizar ahora';
   },
   calImportOff: async () => {
     if (!confirm('¿Desconectar Google Calendar de Turbo?')) return;

@@ -206,6 +206,38 @@ j = await (await req('GET', 'calendar/import')).json();
 log(j.connected && j.events.length >= 7, 'importar: se recuerda el link', j.events.length);
 r = await req('PUT', 'calendar/import-url', { url: 'ftp://malo' });
 log(r.status === 400, 'importar: link inválido → 400', r.status);
+
+// Memoria de 10 min: la segunda lectura no vuelve a pedir el calendario a Google.
+let icsFetches = 0;
+window.fetch = async (url, init) => { if (String(url) === 'https://ics.test/basic.ics') { icsFetches++; return new Response(googleIcs, { status: 200 }); } return fetchBefore(url, init); };
+await req('GET', 'calendar/import');
+log(icsFetches === 0, 'importar: usa la memoria de 10 min', icsFetches);
+await req('GET', 'calendar/import?force=1');
+log(icsFetches === 1, 'importar: "Actualizar ahora" fuerza lectura', icsFetches);
+// Si Google falla, se devuelve lo último que se tenía (con aviso).
+window.fetch = async (url, init) => String(url) === 'https://ics.test/basic.ics' ? new Response('no', { status: 500 }) : fetchBefore(url, init);
+j = await (await req('GET', 'calendar/import?force=1')).json();
+log(j.connected && j.events.length >= 7 && j.error, 'importar: si Google falla, devuelve lo último', j.error);
+
+// Calendario enorme (años de historial): debe procesarse en pocos milisegundos.
+const big = ['BEGIN:VCALENDAR'];
+for (let i = 0; i < 4000; i++) {
+  const d = new Date(2019, 0, 1 + i % 2400);
+  big.push('BEGIN:VEVENT', `UID:old${i}`, `DTSTART:${ymd(d)}T150000Z`, `DTEND:${ymd(d)}T160000Z`, `SUMMARY:Viejo ${i}`, 'END:VEVENT');
+}
+for (let i = 0; i < 20; i++) big.push('BEGIN:VEVENT', `UID:rec${i}`, 'DTSTART;TZID=America/Santiago:20180105T090000', 'DTEND;TZID=America/Santiago:20180105T100000', 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE', `SUMMARY:Semanal ${i}`, 'END:VEVENT');
+big.push('BEGIN:VEVENT', 'UID:yy', 'DTSTART;VALUE=DATE:20000101', 'RRULE:FREQ=YEARLY', 'SUMMARY:Cumple', 'END:VEVENT', 'END:VCALENDAR');
+const bigText = big.join('\r\n');
+window.fetch = async (url, init) => String(url) === 'https://ics.test/big.ics' ? new Response(bigText, { status: 200 }) : fetchBefore(url, init);
+const t0 = performance.now();
+j = await (await req('PUT', 'calendar/import-url', { url: 'https://ics.test/big.ics' })).json();
+const ms = performance.now() - t0;
+log(ms < 60, `importar: calendario de 4.000 eventos en ${ms.toFixed(1)} ms`);
+log(j.events.filter(e => e.title === 'Semanal 0').length >= 15, 'importar: eventos semanales antiguos siguen apareciendo', j.events.filter(e => e.title === 'Semanal 0').length);
+
+// Activar el link del calendario dos veces devuelve el mismo (no rompe la suscripción).
+j = await (await req('POST', 'calendar/enable', { token: 'd'.repeat(36) })).json();
+log(j.token === CAL, 'calendario: reactivar reutiliza el mismo link', j.token?.slice(0, 6));
 window.fetch = fetchBefore;
 
 lines.push('', failures ? `${failures} FALLARON` : 'TODO OK');
