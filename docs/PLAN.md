@@ -257,7 +257,7 @@ Sesión 4 de @docs/PLAN.md. Entrevístame primero (¿solo 3 tareas por día?, ¿
 
 Ideas de Joaquín para esta sesión (16-10-2026), para conversarlas en la entrevista:
 - Opción de un timer de 10 minutos de mirar a la pared (descanso sin pantalla), junto al ritual.
-- El foco estándar se queda como está (25–30 min), pero que pueda elegir más tiempo con un toque, como las alarmas del celular, para los días con más energía.
+- ~~El foco estándar se queda como está, pero que pueda elegir más tiempo~~ Hecho el 16-10-2026: ruedas de foco y descanso en Foco, descanso con "otra vuelta" y alarma suave (suena solo con Turbo abierta; bloqueado avisa la notificación).
 
 ### Sesión 5: hábitos y juego
 
