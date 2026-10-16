@@ -260,10 +260,13 @@ async function api(request, env, url, ctx) {
     }
 
     case 'GET calendar/import': {
-      // Con puente: lo leído hace menos de 2 min, o se lee ahora. Sin puente: el link iCal (respaldo).
+      // Con puente: Google puede tardar varios segundos, así que al abrir la app se entrega al tiro lo último leído
+      // y, si tiene más de 2 min, se vuelve a leer por detrás. Solo ↻ (force) espera a Google. Sin puente: el iCal.
       if (await kvGet(env, 'puenteUrl')) {
         const visto = await kvGet(env, 'puenteVisto');
-        const r = url.searchParams.has('force') || !visto || Date.now() - visto.t > 2 * 60000 ? await sincronizar(env, Date.now()) : await leerCache(env);
+        const esperar = url.searchParams.has('force') || !visto;
+        if (!esperar && Date.now() - visto.t > 2 * 60000) ctx?.waitUntil(sincronizar(env, Date.now()).catch(e => console.warn('Puente (al abrir)', e.message)));
+        const r = esperar ? await sincronizar(env, Date.now()) : await leerCache(env);
         return json({ events: r.events, cambios: r.cambios, connected: true, puente: true, error: r.error || undefined });
       }
       const u = await kvGet(env, 'importIcs');

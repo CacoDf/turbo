@@ -239,3 +239,21 @@ test('cron con puente: lee Google cada 5 min, no cada minuto', async () => {
     assert.equal(g.gets, antes + 1);
   } finally { await w.cerrar(); }
 });
+
+test('al abrir la app con puente, responde al tiro con lo último leído y actualiza por detrás', async () => {
+  const w = await crearMundo();
+  const g = googleFalso(w);
+  try {
+    await w.json('PUT', 'puente/url', { url: URL_PUENTE });
+    const lecturas = g.gets;
+    let lento = false;
+    const original = w.google;
+    w.google = async req => { if (req.method === 'GET') { lento = true; await new Promise(r => setTimeout(r, 1500)); } return original(req); };
+    const t0 = Date.now();
+    const r = await w.json('GET', 'calendar/import');
+    assert.equal(r.puente, true);
+    assert.ok(Date.now() - t0 < 1000, 'no espera a Google');
+    assert.equal(lento, false, 'recién leído: ni siquiera lee por detrás');
+    assert.equal(g.gets, lecturas);
+  } finally { await w.cerrar(); }
+});
