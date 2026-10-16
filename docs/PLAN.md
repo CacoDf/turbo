@@ -236,6 +236,11 @@ Sesión 2 de @docs/PLAN.md. En modo plan. Haz que Capturar decida si lo que anot
 Sesión 3 de @docs/PLAN.md. Entrevístame primero con preguntas cortas (hora de despertar y dormir, tamaño mínimo de hueco, palabras que marcan pruebas, cómo mostrar lo que viene de Google para que no se duplique). Luego escribe el Apps Script (archivo aparte, con instrucciones paso a paso para pegarlo en script.google.com) para crear y leer eventos en los dos sentidos, y el detector de huecos de tiempo libre (incluye bloques largos) con pruebas unitarias que cubran días con clases seguidas, eventos de todo el día y huecos de menos de 15 min. Cierra con el aviso 5 minutos antes de un hueco y el Atajo de iOS "Anotar en Turbo" (endpoints /api/shortcut/* protegidos con APP_SECRET y guía en español para armarlo).
 ```
 
+Lo que dejó lista la Sesión 2 para el puente (Joaquín quiere Turbo y Google Calendar como uno solo, en los dos sentidos):
+- Todo lo que se anota con hora en Turbo queda en `state.schedule` con `date`, `id` estable y `src:'turbo'`. Esos son los eventos que el Apps Script crea en Google.
+- Regla anti-duplicados: al crear el evento en Google, guardar el id de Turbo en su descripción (por ejemplo `turbo:<id>`). Al leer Google, un evento con ese id no se muestra dos veces en Día ni avisa dos veces.
+- El feed `.ics` de Turbo (suscripción) ya muestra esos eventos en Google, pero solo para leer y con el retraso de Google. Si el puente funciona, evaluar apagarlo para no ver todo doble.
+
 ### Sesión 4: Foco y Ahora de verdad
 
 `opusplan` · `high`, modo plan.

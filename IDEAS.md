@@ -7,3 +7,10 @@ Ya tienen sesión en `docs/PLAN.md` (no hace falta anotarlas): lista única con 
 - Pareja congelada: `public/pareja.html` y el worker (`/api/share/*`) aún mandan el push "💌 Te mandaron ánimo", cuyo toque abre `/` sin mostrar nada. Decidir si se apaga en el servidor o se quita del todo.
 - Ahora sin tareas no ofrece "Ver todas" (Tareas). Revisar si hace falta cuando el flujo de Capturar quede más pulido (sesión 7).
 - Archivos congelados sin importar (`views/more.js`, `money.js`, `partner.js`, `shield.js`, `assistant.js`, `challenges.js`): borrarlos en una limpieza futura si pasan semanas sin tocarlos.
+
+Lo que dijo Joaquín al partir la Sesión 2 (16-10-2026):
+- WebKit en el PC no se ha corrido, pero en el iPhone todo funciona. Queda pendiente, sin apuro.
+- La prueba de 2 días sin abrir la app (Sesión 1) sigue corriendo sola; se verá cuando pase.
+- Google Calendar a veces se demora en aparecer: se agregó ↻ en Día (Sesión 2). Si Google mismo tarda en publicar su link iCal, lo arregla la Sesión 3 (Apps Script).
+- La barra de pestañas flotaba más arriba en Capturar y Foco: se arregló en la Sesión 2; confirmar en el iPhone.
+- Quiere Turbo y Google Calendar como uno solo, en los dos sentidos (ya en la Sesión 3).

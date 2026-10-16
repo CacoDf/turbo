@@ -58,11 +58,12 @@ Joaquín usa Claude Code en la app Claude Desktop (Windows), no en la terminal: 
 Recorre con él esta lista, una por una:
 
 1. `npm test` pasa (muestra la salida).
-2. Subagente `tester-tdah` y arreglar lo más grave.
-3. `/code-review`.
-4. Commit y, con el visto bueno de Joaquín, merge a `main` para que Cloudflare publique (nunca a `main` sin que él lo diga).
-5. Actualiza `docs/PROGRESO.md`: estado "cerrada", fecha de hoy y una nota de uso.
-6. Dile: "Listo. Pruébala hoy en tu iPhone. Cierra esta sesión (la siguiente la abres con + New session o Ctrl+N y escribes /turbo). Si se te ocurre algo, dímelo y lo anoto en IDEAS.md." Si la sesión corrió en la nube, recuérdale correr `git pull origin turbo-2` en su PC antes de la siguiente sesión local.
+2. Claude prueba la app como usuario antes que Joaquín: flujos de la sesión de punta a punta con Playwright en viewport de iPhone, revisando cada captura y arreglando lo que falle. A Joaquín solo le toca lo que no se puede probar desde el PC o la nube.
+3. Subagente `tester-tdah` y arreglar lo más grave.
+4. `/code-review`.
+5. Commit y, con el visto bueno de Joaquín, merge a `main` para que Cloudflare publique (nunca a `main` sin que él lo diga).
+6. Actualiza `docs/PROGRESO.md`: estado "cerrada", fecha de hoy y una nota de uso.
+7. Dile: "Listo. Pruébala hoy en tu iPhone. Cierra esta sesión (la siguiente la abres con + New session o Ctrl+N y escribes /turbo). Si se te ocurre algo, dímelo y lo anoto en IDEAS.md." Si la sesión corrió en la nube, recuérdale correr `git pull origin turbo-2` en su PC antes de la siguiente sesión local.
 
 ## Plantilla de docs/PROGRESO.md
 

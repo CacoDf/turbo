@@ -40,6 +40,7 @@ IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, 
 
 ## Al terminar una tarea
 
+- IMPORTANTE: antes de pedirle a Joaquín que pruebe, Claude usa la app como él. Abre la app local con Playwright en viewport de iPhone y hace los flujos de la sesión de punta a punta (y el cron del worker si hay avisos). Mira cada captura y arregla lo que falle o se vea mal. Recién entonces le pasa una lista corta de lo que solo se puede probar en el iPhone (teclado y barra reales de iOS, push con el teléfono bloqueado, su Google Calendar).
 - Si cambió la interfaz, usa el subagente `tester-tdah` (en `.claude/agents/`) y arregla lo que más haría abandonar la app.
 - Pide una revisión con un subagente sobre el diff, contra la fase correspondiente de docs/PLAN.md. Solo cuentan fallas de correctitud o de requisitos.
 - Commits en español, descriptivos, uno por cambio lógico.
