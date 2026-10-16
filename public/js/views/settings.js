@@ -2,9 +2,9 @@
 import { state, update, replaceState, resetState } from '../store.js';
 import { esc, dayKey } from '../util.js';
 import { toast } from '../ui.js';
-import { ping, enablePush, testPush, pushSupport, pullBackup, scheduleBackup, hasServer } from '../api.js';
+import { ping, enablePush, testPush, pushSupport, pullBackup, scheduleBackup, hasServer, calendarImportGet } from '../api.js';
 import { rerender } from '../router.js';
-import { calendarCard } from '../calendar.js';
+import { calendarCard, refreshExternal } from '../calendar.js';
 
 export function render() {
   const s = state.settings;
@@ -50,6 +50,13 @@ export function render() {
       <p class="muted small">Turbo 2.0. Hecha a tu medida.</p>
       <button class="btn danger ghost small" data-act="setReset">Borrar todo y empezar de cero</button>
     </section>`;
+}
+
+// El puente se pudo conectar desde otro aparato (p. ej. el PC): al abrir Ajustes se le pregunta al servidor.
+// Solo se redibuja si de verdad está conectado: así no se borra lo que estés pegando.
+export function mount() {
+  if (!hasServer() || state.calendar.puenteOn) return;
+  calendarImportGet().then(r => r.puente && refreshExternal(true)).catch(() => {});
 }
 
 export const actions = {

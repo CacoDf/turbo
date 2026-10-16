@@ -91,3 +91,12 @@ test('al abrir, la app recoge lo anotado con el Atajo (con IA y sin IA) y avisa 
   await expect(page.locator('#app')).not.toBeEmpty();
   expect((await app.guardado()).schedule.filter(b => b.id === 'at1')).toHaveLength(1);
 });
+
+test('si el puente se conectó desde otro aparato, Ajustes lo muestra conectado al abrir', async ({ page, app }) => {
+  await page.route('**/api/**', route => route.fulfill({ json: {} }));
+  await page.route('**/api/calendar/import**', route => route.fulfill({ json: { connected: true, puente: true, events: [], cambios: [] } }));
+  await conServidor(page, app);
+  await app.abrir('ajustes');
+  await expect(page.getByText(/🟢 Conectado · 0 eventos/)).toBeVisible();
+  await expect(page.locator('#puenteUrl')).toHaveCount(0);
+});
