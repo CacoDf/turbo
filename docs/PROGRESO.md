@@ -2,7 +2,7 @@
 
 | Sesión | Estado | Cerrada el | Siguiente desde | Días de uso real |
 | --- | --- | --- | --- | --- |
-| Fase 0 · Red de seguridad | pendiente | | | |
+| Fase 0 · Red de seguridad | en curso | | | |
 | Fase 1 · Recortar | pendiente | | | |
 | Diseño 1 | pendiente | | | |
 | Fase 2 · Huecos | pendiente | | | |
