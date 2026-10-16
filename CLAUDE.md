@@ -2,9 +2,9 @@
 
 PWA para TDAH de Joaquín, usada en iPhone (Safari, agregada a la pantalla de inicio).
 JavaScript sin build en `public/`, servidor en Cloudflare Workers + D1 (`src/worker.js`), IA con Gemini.
-El plan completo, por fases, está en @docs/PLAN.md. Trabaja solo en la fase que Joaquín indique.
+El plan completo, por fases y sesiones, está en @docs/PLAN.md. Trabaja solo en la sesión que Joaquín indique.
 
-IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, usa el skill `turbo`: lee `docs/PROGRESO.md` y dile a Joaquín en qué fase va, qué modelo y esfuerzo poner y qué hacer. Al cerrar una sesión, úsalo otra vez.
+IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, usa el skill `turbo`: lee `docs/PROGRESO.md` y dile a Joaquín en qué fase o sesión va, qué modelo y esfuerzo poner y qué hacer. Al cerrar una sesión, úsalo otra vez.
 
 ## Comandos
 
@@ -18,7 +18,8 @@ IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, 
 
 - IMPORTANTE: máximo 4 pestañas: Ahora, Día, Capturar, Foco. Ajustes es un ícono, no una pestaña. No crees pantallas nuevas.
 - Cada cambio debe quitarle toques o decisiones a Joaquín, no agregarle.
-- Antes de empezar una fase nueva, pregúntale cuántos días usó la fase actual (meta: 7). Si son menos, propone arreglar la fase actual en vez de seguir.
+- Antes de empezar una sesión nueva, pregúntale si abrió Turbo estos días y qué le molestó. Si casi no la usó, arregla primero por qué en vez de construir más. No hay espera fija entre sesiones: el ritmo lo decide Joaquín (máximo 2 horas por sesión).
+- Cada sesión termina publicada y probada en su iPhone el mismo día (merge a `main` solo cuando él lo pida).
 - Las ideas que no son de la fase actual se anotan en `IDEAS.md`. No se implementan.
 - Textos de la interfaz en español de Chile: cortos, directos y sin culpa. La gamificación no castiga ni quita puntos.
 - Avisos: máximo 3 por hueco, frases que rotan, silencio durante clases y después de la hora de dormir.
@@ -32,6 +33,7 @@ IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, 
 - La IA es opcional: todo flujo con Gemini tiene respaldo sin IA (ver `localParse` y `fallbackSteps` en `public/js/planner.js`).
 - Los avisos los calcula el servidor (cron del worker), no el teléfono: tienen que seguir llegando aunque Joaquín pase días sin abrir la app.
 - Notificaciones: Declarative Web Push (payload con `"web_push": 8030`, `title` y `navigate`), manteniendo el service worker como respaldo.
+- Todo lo nuevo usa las variables CSS que ya existen, sin colores sueltos: el look se rehace al final (sesión 7) y debe costar poco.
 - Sigue el patrón de `public/js/views/*.js` (`render`, `mount`, `actions`). Archivos de vista de menos de 300 líneas.
 - Cuando agregues un archivo a `public/`, agrégalo también a la lista `SHELL` de `public/sw.js` y sube la versión de `CACHE`.
 

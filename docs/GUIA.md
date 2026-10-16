@@ -17,7 +17,7 @@ Regla simple: **piensa con Opus, construye con Sonnet, y sube el esfuerzo solo c
 | Momento | Modelo | Esfuerzo | Por qué |
 | --- | --- | --- | --- |
 | Planificar e implementar una fase normal | `opusplan` | `high` | Opus arma el plan y Sonnet lo ejecuta |
-| Fase 3 o un bug que no entiendes | `opus`, o `fable` si tu plan lo trae | `xhigh` | Arquitectura y depuración difícil |
+| La sesión 1 (avisos) o un bug que no entiendes | `opus`, o `fable` si tu plan lo trae | `xhigh` | Arquitectura y depuración difícil |
 | Cambios chicos: textos, colores | `sonnet` | `low` | Rápido y gasta poco |
 | Diseño con impeccable | `opus` | `medium` | Juicio visual (recomendación, no regla oficial) |
 | Agente que prueba la app | `sonnet` | `medium` | Ya viene fijado en su archivo |
@@ -38,7 +38,7 @@ Regla simple: **piensa con Opus, construye con Sonnet, y sube el esfuerzo solo c
 7. Aprueba y déjalo trabajar. Si se desvía, Esc. Si lo corriges dos veces y sigue mal, `/clear` y pídelo mejor.
 8. Opcional: `/goal npm test pasa y hay capturas de las 4 pestañas, o para después de 20 turnos`.
 9. "Usa el subagente tester-tdah para probar esta fase", después `/code-review`.
-10. `/turbo` para cerrar: commit, merge, anotar en PROGRESO, `/clear` y a usarla 7 días.
+10. `/turbo` para cerrar: commit, merge (si tú lo pides), anotar en PROGRESO, `/clear` y a probarla hoy mismo en tu iPhone.
 
 Tres reglas para pedir bien: di el resultado y cómo se comprueba; apunta a archivos con `@`; una fase por sesión (lo demás, "anótalo en IDEAS.md").
 
@@ -48,13 +48,13 @@ Tres reglas para pedir bien: di el resultado y cómo se comprueba; apunta a arch
 | --- | --- | --- |
 | `tester-tdah` (subagente con Playwright) | La app en WebKit con tamaño de iPhone 15 | Al cerrar cada fase |
 | Claude en Chrome (`claude --chrome`) | Una ventana de Chrome real mientras Claude hace clic | Para mirar o depurar |
-| Tú, 7 días en tu iPhone | Avisos reales, Atajos, Siri | Siempre |
+| Tú, usándola en tu iPhone | Avisos reales, Atajos, Siri | Siempre |
 
 Además: `/verify` comprueba un cambio contra la app corriendo y `/code-review` revisa el código con un subagente que no lo escribió ([skills incluidas](https://code.claude.com/docs/en/skills.md)).
 
 ## Diseño con impeccable
 
-Sesiones aparte, después de la Fase 1 y de la Fase 4. Con `opus` · `medium`:
+Una sola sesión, la 7, al final del plan. Con `opus` · `medium`:
 
 1. `/impeccable init` (escribe PRODUCT.md y DESIGN.md). Contexto: "app para TDAH, iPhone, una mano, 3 minutos entre clases, sin culpa". Pega una captura del [mockup](https://claude.ai/artifact/SXw5uprBWA8e4wN3FPMGKL) como dirección.
 2. `/impeccable critique` y `/impeccable audit`.
@@ -62,7 +62,9 @@ Sesiones aparte, después de la Fase 1 y de la Fase 4. Con `opus` · `medium`:
 4. `/impeccable adapt` y `/impeccable harden`.
 5. `/impeccable polish`. Después `npm test` y `tester-tdah`.
 
-Después de la Fase 4: `/impeccable delight` y `/impeccable animate`, con moderación.
+Antes de aplicar nada, pide 3 direcciones en una página de vistas previas (como hiciste con VANDAL), elige una y recién entonces se aplica a la app.
+
+Al final de la misma sesión: `/impeccable delight` y `/impeccable animate`, con moderación.
 
 ## Fuentes
 

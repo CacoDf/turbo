@@ -13,9 +13,9 @@ Lee `docs/PROGRESO.md`. Si no existe, créalo con la plantilla del final (todo p
 
 ## 2. Decide qué toca
 
-- Si la última fase se cerró hace menos de 7 días: NO toca fase nueva. Dile cuántos días faltan y ofrece solo una de estas: un arreglo chico de `IDEAS.md` (con `sonnet` y `/effort low`) o la sesión de diseño si le corresponde.
-- Si se cumplieron los 7 días: pregúntale cuántos días la usó de verdad. Si fueron menos de 5, propón arreglar la fase actual antes de seguir.
-- Si no: toca la siguiente fase o sesión de la tabla.
+- Antes de proponer la sesión siguiente, pregúntale: ¿abriste Turbo estos días?, ¿qué te molestó o qué ignoraste? Anótalo en `IDEAS.md`.
+- Si casi no la abrió: NO toca construir. Ofrece arreglar por qué (un arreglo chico de `IDEAS.md` con `sonnet` y `/effort low`, o ajustar los avisos) antes de seguir.
+- Si la usó: toca la siguiente sesión de la tabla. No hay espera fija entre sesiones: Joaquín decide el ritmo, máximo 2 horas por sesión.
 
 ## 3. Dile qué hacer, con este formato exacto
 
@@ -39,14 +39,15 @@ Joaquín usa Claude Code en la app Claude Desktop (Windows), no en la terminal: 
 
 | Sesión | Modelo | Esfuerzo | Qué usar | Se cierra cuando |
 | --- | --- | --- | --- | --- |
-| Fase 0 · Red de seguridad | `opusplan` | `medium` | Modo plan. Al final, `/run-skill-generator` | `npm test` pasa y deja capturas |
-| Fase 1 · Recortar a 4 pestañas | `opusplan` | `high` | Modo plan. Exportar datos antes de tocar nada | Abre en Ahora y los datos siguen ahí |
-| Diseño 1 (después de Fase 1) | `opus` | `medium` | impeccable: `init`, `critique`, `audit`, `layout`/`typeset`/`colorize`, `adapt`, `harden`, `polish`. Pedirle que pegue una captura del mockup | `npm test` pasa y `tester-tdah` sin problemas graves |
-| Fase 2 · Calendario y huecos | `opus` | `high` | Modo plan. Entrevista corta primero | Día muestra los huecos igual que Google Calendar |
-| Fase 3 · Insistencia | `opus` (o `fable` si su plan lo trae) | `xhigh` | Modo plan. Avisos calculados en el servidor. Guía de Atajos | Le llega el aviso con el iPhone bloqueado y Siri anota |
-| Fase 4 · Hábitos y juego | `opusplan` | `medium` | Modo plan | Saltarse un día no rompe la racha |
-| Diseño 2 (después de Fase 4) | `opus` | `medium` | impeccable: `delight`, `animate` (con moderación), `polish` | Igual que Diseño 1 |
-| Fase 5 · Estudios | `opusplan` | `high` | Modo plan. Probar con datos de prueba antes de tocar el calendario | Una prueba nueva genera sesiones en sus huecos |
+| Fase 0 · Red de seguridad (cerrada) | `opusplan` | `medium` | Modo plan | `npm test` pasa y deja capturas |
+| Fase 1 · Recortar a 4 pestañas (cerrada) | `opusplan` | `high` | Modo plan. Exportar datos antes de tocar nada | Abre en Ahora y los datos siguen ahí |
+| Sesión 1 · Avisos sin abrir | `opus` (o `fable` si su plan lo trae) | `xhigh` | Modo plan. Avisos calculados en el servidor, push declarativo, número en el ícono, "día mínimo" | Le llega un aviso con el iPhone bloqueado, sin haber abierto la app en 2 días |
+| Sesión 2 · Lista única dentro de Turbo | `opusplan` | `high` | Modo plan. Capturar decide tarea o evento; Día los muestra juntos | Anota "dentista jueves 15:00" y lo ve en Día, con aviso |
+| Sesión 3 · Puente con Google y huecos | `opus` | `high` | Modo plan. Entrevista corta primero. Apps Script, detector de huecos, Atajo "Anotar en Turbo" | Lo que anota sale en Google Calendar y Día muestra los huecos igual que Google |
+| Sesión 4 · Foco y Ahora de verdad | `opusplan` | `high` | Modo plan. Entrevista corta primero. Ritual, "puedes parar", calibrar tiempos, Atajo "Partir 5 min" | La usa en una sesión real de foco |
+| Sesión 5 · Hábitos y juego | `opusplan` | `medium` | Modo plan | Saltarse un día no rompe la racha |
+| Sesión 6 · Estudios desde el calendario | `opusplan` | `high` | Modo plan. Probar con datos de prueba antes de tocar el calendario | Una prueba nueva genera sesiones en sus huecos |
+| Sesión 7 · Look con impeccable | `opus` | `medium` | impeccable: `init`, `critique`, `audit`, `layout`/`typeset`/`colorize`, `adapt`, `harden`, `polish`; al final `delight` y `animate` con moderación. Primero 3 direcciones en una página de vistas previas; él elige | Joaquín dice "ya no me molesta" y `tester-tdah` sin problemas graves |
 | Después | `sonnet` | `low` | Solo `IDEAS.md`, máximo una mejora por semana | — |
 
 ## 5. Al cerrar una sesión
@@ -56,23 +57,24 @@ Recorre con él esta lista, una por una:
 1. `npm test` pasa (muestra la salida).
 2. Subagente `tester-tdah` y arreglar lo más grave.
 3. `/code-review`.
-4. Commit y, si todo pasa, merge a `main` para que Cloudflare publique.
-5. Actualiza `docs/PROGRESO.md`: estado "cerrada", fecha de hoy y la fecha en que toca la siguiente (hoy + 7 días).
-6. Dile: "Listo. Cierra esta sesión (la siguiente la abres con + New session o Ctrl+N). Úsala en tu iPhone hasta el <fecha>. Si se te ocurre algo, dímelo y lo anoto en IDEAS.md."
+4. Commit y, con el visto bueno de Joaquín, merge a `main` para que Cloudflare publique (nunca a `main` sin que él lo diga).
+5. Actualiza `docs/PROGRESO.md`: estado "cerrada", fecha de hoy y una nota de uso.
+6. Dile: "Listo. Pruébala hoy en tu iPhone. Cierra esta sesión (la siguiente la abres con + New session o Ctrl+N y escribes /turbo). Si se te ocurre algo, dímelo y lo anoto en IDEAS.md." Si la sesión corrió en la nube, recuérdale correr `git pull origin turbo-2` en su PC antes de la siguiente sesión local.
 
 ## Plantilla de docs/PROGRESO.md
 
 ```
 # Progreso Turbo 2.0
 
-| Sesión | Estado | Cerrada el | Siguiente desde | Días de uso real |
-| --- | --- | --- | --- | --- |
-| Fase 0 · Red de seguridad | pendiente | | | |
-| Fase 1 · Recortar | pendiente | | | |
-| Diseño 1 | pendiente | | | |
-| Fase 2 · Huecos | pendiente | | | |
-| Fase 3 · Insistencia | pendiente | | | |
-| Fase 4 · Hábitos y juego | pendiente | | | |
-| Diseño 2 | pendiente | | | |
-| Fase 5 · Estudios | pendiente | | | |
+| Sesión | Estado | Cerrada el | Notas de uso |
+| --- | --- | --- | --- |
+| Fase 0 · Red de seguridad | cerrada | | |
+| Fase 1 · Recortar | cerrada | | |
+| Sesión 1 · Avisos sin abrir | pendiente | | |
+| Sesión 2 · Lista única dentro de Turbo | pendiente | | |
+| Sesión 3 · Puente con Google y huecos | pendiente | | |
+| Sesión 4 · Foco y Ahora de verdad | pendiente | | |
+| Sesión 5 · Hábitos y juego | pendiente | | |
+| Sesión 6 · Estudios desde el calendario | pendiente | | |
+| Sesión 7 · Look con impeccable | pendiente | | |
 ```
