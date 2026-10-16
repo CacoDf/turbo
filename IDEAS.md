@@ -18,3 +18,4 @@ Lo que dijo Joaquín al partir la Sesión 2 (16-10-2026):
 Lo que dijo Joaquín al partir la Sesión 3 (16-10-2026):
 - La está usando y probando sobre la marcha; nada le molestó. WebKit en el PC y la prueba de 2 días siguen pendientes, sin apuro.
 - Los horarios de huecos podrían ir en Ajustes (hoy fijos: 08:30–20:00, desde 30 min). Solo si los quiere cambiar seguido.
+- Puente con Google: el Apps Script pide `getTag` y `getMyStatus` evento por evento y la lectura tarda. Se puede acelerar leyendo la marca solo en el calendario "Turbo" (exige volver a pegar el código y crear una versión nueva de la implementación).
