@@ -75,8 +75,9 @@ function defaultState() {
     reviews: [], // { week, t, stats, ai }
     challenges: { month: null, claimed: [] },
     trophies: [], // { month, theme }
-    calendar: { token: null, importOn: false, lastImport: 0 },
+    calendar: { token: null, importOn: false, puenteOn: false, lastImport: 0 },
     extEvents: [], // eventos importados: { title, date, start, end, allDay }
+    calBorrados: [], // ids de eventos de Turbo borrados aquí: el puente los borra también en Google
     meta: { createdAt: now, updatedAt: now, onboarded: false },
   };
 }

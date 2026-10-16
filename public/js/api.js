@@ -11,7 +11,13 @@ async function call(path, { method = 'GET', body } = {}) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.settings.secret}` },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text().catch(() => '')}`.trim());
+  if (!res.ok) {
+    // El servidor explica el problema en { error }: se muestra eso, no el JSON crudo.
+    const t = await res.text().catch(() => '');
+    let msg = '';
+    try { msg = JSON.parse(t).error || ''; } catch {}
+    throw new Error(msg || `${res.status} ${t}`.trim());
+  }
   return res.json();
 }
 
@@ -44,6 +50,7 @@ export const aiReview = body => call('ai/review', { method: 'POST', body });
 
 export const calendarEnable = token => call('calendar/enable', { method: 'POST', body: { token } });
 export const calendarImportSet = url => call('calendar/import-url', { method: 'PUT', body: { url } });
+export const puenteSet = url => call('puente/url', { method: 'PUT', body: { url } });
 export const calendarImportGet = (force = false) => call(`calendar/import${force ? '?force=1' : ''}`);
 
 // ---- Modo pareja ----

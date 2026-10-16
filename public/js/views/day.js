@@ -155,7 +155,11 @@ export const actions = {
     rerender();
   },
   dayDel: el => {
-    update(s => { s.schedule = s.schedule.filter(b => b.id !== el.dataset.id); });
+    update(s => {
+      const b = s.schedule.find(x => x.id === el.dataset.id);
+      s.schedule = s.schedule.filter(x => x.id !== el.dataset.id);
+      if (b?.date) s.calBorrados = [...(s.calBorrados || []), b.id].slice(-100); // el puente lo borra también en Google
+    });
   },
   dayAdd: () => {
     const title = document.getElementById('bTitle').value.trim();

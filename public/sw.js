@@ -1,5 +1,5 @@
 // Service worker: permite abrir Turbo sin internet y recibir notificaciones.
-const CACHE = 'turbo-v7';
+const CACHE = 'turbo-v8';
 const SHELL = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest',
   '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js', '/js/huecos.js',
@@ -7,7 +7,7 @@ const SHELL = [
   '/js/views/day.js', '/js/views/garage.js', '/js/views/settings.js',
   '/js/views/goals.js', '/js/views/review.js', '/js/calendar.js',
   '/js/views/routines.js', '/js/views/mood.js', '/js/views/studies.js',
-  '/icons/icon-192.png', '/icons/apple-touch-icon.png',
+  '/puente-google.txt', '/icons/icon-192.png', '/icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', e => {
