@@ -27,6 +27,7 @@ Antes de partir, haz tú esto (app Claude Desktop):
 2. Modelo: menú junto al botón de enviar (Ctrl+Shift+I) → <modelo>
 3. Esfuerzo: Ctrl+Shift+E → <nivel>
 4. Modo: selector junto al botón de enviar (Ctrl+Shift+M) → <Plan, o lo que corresponda>
+5. Skill o agente que toca usar: <por ejemplo impeccable, tester-tdah, /code-review, o "ninguna por ahora">
 
 Después, dime: "<la frase o el prompt de la fase>"
 
