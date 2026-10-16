@@ -27,6 +27,7 @@ export async function crearMundo(extra = {}) {
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(mundo.geminiReply) }] } }] }), { status: 200 });
       }
       if (mundo.externo.has(u)) return mundo.externo.get(u)();
+      if (mundo.google && u.startsWith('https://script.google.com/macros/s/')) return mundo.google(req);
       return new Response('no simulado: ' + u, { status: 599 });
     },
   });

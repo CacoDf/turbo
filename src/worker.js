@@ -4,23 +4,26 @@
 // - /api/state      respaldo de tus datos.
 // - /api/push/*     notificaciones (web push con claves VAPID generadas aquí mismo).
 // - /api/seen       la app avisa que se abrió (cancela insistencias y apaga el "día mínimo").
+// - /api/puente/*   puente con Google Calendar vía Apps Script (src/puente.js): lee todos tus calendarios
+//                    y crea en Google lo que anotas con hora en Turbo.
 // - cron cada minuto: calcula los avisos desde el respaldo y el calendario (src/avisos.js) y manda los que tocan.
 //
 // Variables en Cloudflare: APP_SECRET (obligatoria), GEMINI_API_KEY (para IA), GEMINI_MODEL (opcional).
 
 import { planAvisos } from './avisos.js';
+import { rango, normalizar, paraGoogle, anotarEscritura, reconciliar, aplicarCambios, huella } from './puente.js';
 import { cifrar, mensajeDeclarativo, tieneClaves } from './push.js';
 import { TZ, pad, santiagoParts, dayNum, fromDayNum, keyOf, keyToNum } from './tiempo.js';
 
 const AREAS = ['estudios', 'entreno', 'pega', 'casa', 'plata', 'personal'];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     try {
       await ensureSchema(env);
-      return await api(request, env, url);
+      return await api(request, env, url, ctx);
     } catch (e) {
       console.error(e);
       return json({ error: e.message || 'Error' }, e.status || 500);
@@ -66,9 +69,9 @@ async function kvGet(env, k) {
   return row ? JSON.parse(row.v) : null;
 }
 
-async function kvSet(env, k, v) {
+async function kvSet(env, k, v, t = Date.now()) {
   await env.DB.prepare('INSERT INTO kv (k, v, updated) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated = excluded.updated')
-    .bind(k, JSON.stringify(v), Date.now()).run();
+    .bind(k, JSON.stringify(v), t).run();
 }
 
 function requireAuth(request, env) {
@@ -100,7 +103,7 @@ async function receiveCheer(env, body) {
 
 // ---------- rutas ----------
 
-async function api(request, env, url) {
+async function api(request, env, url, ctx) {
   const path = url.pathname.slice(5); // sin "/api/"
   const method = request.method;
 
@@ -140,6 +143,8 @@ async function api(request, env, url) {
       const cur = await kvGet(env, 'state');
       if (cur && cur.updatedAt > body.updatedAt) return json({ error: 'Hay una versión más nueva en el servidor' }, 409);
       await kvSet(env, 'state', { updatedAt: body.updatedAt, state: body.state });
+      // Lo nuevo con hora sale en Google al tiro (sin esperar al cron). Si no hay nada que crear, no llama a Google.
+      ctx?.waitUntil(sincronizar(env, Date.now(), { leer: false }).catch(e => console.warn('Puente (al guardar)', e.message)));
       return json({ ok: true });
     }
 
@@ -201,7 +206,30 @@ async function api(request, env, url) {
       return json({ ok: true, events });
     }
 
+    case 'PUT puente/url': {
+      const u = String(body?.url || '').trim();
+      if (!u) {
+        await env.DB.prepare("DELETE FROM kv WHERE k IN ('puenteUrl', 'puenteVisto', 'importCache')").run();
+        return json({ ok: true, events: [] });
+      }
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u)) fail(400, 'Ese link no es el del puente. Debe empezar con https://script.google.com/macros/s/ y terminar en /exec');
+      if (!(await kvGet(env, 'puenteToken'))) await kvSet(env, 'puenteToken', hex(24));
+      await kvSet(env, 'puenteUrl', u);
+      const r = await sincronizar(env, Date.now());
+      if (r.error) {
+        await env.DB.prepare("DELETE FROM kv WHERE k IN ('puenteUrl', 'puenteVisto')").run();
+        fail(502, r.error);
+      }
+      return json({ ok: true, events: r.events, cambios: r.cambios });
+    }
+
     case 'GET calendar/import': {
+      // Con puente: lo leído hace menos de 2 min, o se lee ahora. Sin puente: el link iCal (respaldo).
+      if (await kvGet(env, 'puenteUrl')) {
+        const visto = await kvGet(env, 'puenteVisto');
+        const r = url.searchParams.has('force') || !visto || Date.now() - visto.t > 2 * 60000 ? await sincronizar(env, Date.now()) : await leerCache(env);
+        return json({ events: r.events, cambios: r.cambios, connected: true, puente: true, error: r.error || undefined });
+      }
       const u = await kvGet(env, 'importIcs');
       if (!u) return json({ events: [], connected: false });
       // Se guarda lo último leído 10 min: menos trabajo y, si Google falla, igual hay datos.
@@ -430,22 +458,24 @@ async function notifyAll(env, messages) {
 
 // Cada minuto. Lecturas baratas: 5 filas de kv por clave primaria + los avisos que tocan, por índice.
 async function cronAvisos(env, now) {
-  const { results } = await env.DB.prepare("SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan')").all();
+  const { results } = await env.DB.prepare("SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan', 'puenteUrl', 'puenteVisto')").all();
   const v = Object.fromEntries(results.map(r => [r.k, r.updated]));
+  const conCalendario = !!(v.puenteUrl || v.importIcs);
 
-  // 1. Google Calendar: el servidor lo lee solo cada hora, aunque la app no se abra.
+  // 1. Google Calendar: con puente se lee cada 5 min; con el link iCal, cada hora. Aunque la app no se abra.
   //    Ese minuto no planifica (la lectura gasta CPU); el siguiente ya ve el calendario nuevo.
   //    Si algo de esto falla, igual se mandan los avisos ya calculados (paso 3).
-  const leerCalendario = v.importIcs && (!v.importCache || now - v.importCache > 60 * 60000);
+  const leerCalendario = v.puenteUrl ? !v.puenteVisto || now - v.puenteVisto > PUENTE_CADA
+    : v.importIcs && (!v.importCache || now - v.importCache > 60 * 60000);
   try {
-    if (leerCalendario) await refrescarCalendario(env);
+    if (leerCalendario) await (v.puenteUrl ? sincronizar(env, now) : refrescarCalendario(env));
 
     // 2. Replanifica si cambió algo (estado, calendario, la hora de la última apertura) o cada 3 horas.
     //    La apertura entra por hora: abrir la app seguido no recalcula todo cada vez.
     const plan = v.plan && !leerCalendario ? await kvGet(env, 'plan') : null;
-    const firma = `${v.state || 0}|${v.importIcs ? v.importCache || 0 : 0}|${Math.floor((v.lastSeen || 0) / 3600000)}`;
+    const firma = `${v.state || 0}|${conCalendario ? v.importCache || 0 : 0}|${Math.floor((v.lastSeen || 0) / 3600000)}`;
     if (v.state && !leerCalendario && (!plan || plan.firma !== firma || now - plan.t > 3 * 3600000)) {
-      await replanificar(env, now, { visto: v.lastSeen || null, conCalendario: !!v.importIcs });
+      await replanificar(env, now, { visto: v.lastSeen || null, conCalendario });
       await kvSet(env, 'plan', { t: now, firma });
     }
   } catch (e) {
@@ -462,8 +492,9 @@ async function cronAvisos(env, now) {
 }
 
 async function replanificar(env, now, { visto, conCalendario }) {
-  const state = (await kvGet(env, 'state'))?.state || {};
   const cache = conCalendario ? await kvGet(env, 'importCache') : null;
+  // Lo que se movió o borró en Google ya cuenta para los avisos, aunque la app no se haya abierto.
+  const state = aplicarCambios((await kvGet(env, 'state'))?.state || {}, cache?.cambios || []);
   const avisos = planAvisos({ state, eventos: cache?.events || [], visto, ahora: now });
   await env.DB.batch([
     env.DB.prepare('DELETE FROM avisos WHERE sent = 0'),
@@ -484,6 +515,68 @@ async function refrescarCalendario(env) {
     console.warn('Calendario (cron)', e.message);
     await kvSet(env, 'importCache', { url: u, t: Date.now(), events: cache?.url === u ? cache.events : [], error: e.message });
   }
+}
+
+// ---------- Sesión 3: puente con Google Calendar (Apps Script) ----------
+
+const PUENTE_CADA = 5 * 60000;
+const hex = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+const hoyChile = () => { const p = santiagoParts(); return dayNum(p.y, p.m, p.d); };
+
+async function llamarPuente(u, init) {
+  let res;
+  try {
+    res = await fetch(u, init); // Apps Script responde con una redirección: fetch la sigue sola
+  } catch {
+    fail(502, 'No pude hablar con Google. Intenta de nuevo en un rato.');
+  }
+  const r = await res.json().catch(() => null);
+  if (!res.ok || !r) fail(502, `El puente con Google no respondió bien (${res.status}). Revisa que la implementación sea "Cualquier persona".`);
+  if (r.error) fail(502, `Google dice: ${r.error}`);
+  return r;
+}
+
+async function leerCache(env) {
+  const [cache, visto] = await Promise.all([kvGet(env, 'importCache'), kvGet(env, 'puenteVisto')]);
+  return { events: cache?.events || [], cambios: cache?.cambios || [], error: visto?.error || null };
+}
+
+// Lee Google (si leer) y crea o borra allá lo que corresponde. Solo escribe en D1 lo que cambió.
+async function sincronizar(env, now, { leer = true } = {}) {
+  const [u, token, guardado, mapa0] = await Promise.all(['puenteUrl', 'puenteToken', 'state', 'puente'].map(k => kvGet(env, k)));
+  if (!u || !token) return { events: [], cambios: [], error: null };
+  const state = guardado?.state || {};
+  const hoy = hoyChile();
+  let mapa = mapa0 || {};
+  let lectura = null;
+  let error = null;
+  try {
+    if (leer) {
+      const { desde, hasta } = rango(hoy);
+      const r = await llamarPuente(`${u}?t=${token}&desde=${desde}&hasta=${hasta}`);
+      lectura = reconciliar({ state, mapa, google: normalizar(r.eventos), hoy });
+      mapa = lectura.mapa;
+    }
+    const pendiente = paraGoogle({ state, mapa, hoy });
+    if (pendiente.crear.length || pendiente.borrar.length) {
+      const r = await llamarPuente(u, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ t: token, ...pendiente }) });
+      mapa = anotarEscritura(mapa, r, pendiente.borrar);
+    }
+  } catch (e) {
+    error = e.message;
+    console.warn('Puente', error);
+  }
+  const escrituras = [];
+  if (huella(mapa) !== huella(mapa0 || {})) escrituras.push(kvSet(env, 'puente', mapa));
+  if (lectura) {
+    const cache = { fuente: 'puente', events: lectura.eventos, cambios: lectura.cambios };
+    const h = huella(cache);
+    if ((await kvGet(env, 'importCache'))?.h !== h) escrituras.push(kvSet(env, 'importCache', { ...cache, h, t: now }, now));
+  }
+  if (leer) escrituras.push(kvSet(env, 'puenteVisto', { t: now, error }, now)); // con la hora del cron: de ahí cuenta los 5 min
+  await Promise.all(escrituras);
+  if (!lectura) return { ...(await leerCache(env)), error };
+  return { events: lectura.eventos, cambios: lectura.cambios, error };
 }
 
 async function pendingMessages(env, endpoint) {
@@ -632,8 +725,10 @@ async function calendarFeed(env, token) {
     'X-WR-CALNAME:Turbo 🏎️', `X-WR-TIMEZONE:${TZ}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
   const event = (uid, fields) => lines.push('BEGIN:VEVENT', `UID:${uid}@turbo`, `DTSTAMP:${stamp}`, ...fields, 'END:VEVENT');
   const emoji = { clase: '🎓', entreno: '🏋️', pega: '💼', otro: '📌' };
+  const enGoogle = (await kvGet(env, 'puente')) || {}; // lo que ya creó el puente no se repite aquí
 
   for (const b of s.schedule || []) {
+    if (enGoogle[b.id]) continue;
     const title = `SUMMARY:${icsEscape(`${emoji[b.kind] || '📌'} ${b.title}`)}`;
     if (b.date) {
       const n = keyToNum(b.date);

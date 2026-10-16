@@ -1,0 +1,96 @@
+// Puente entre Turbo y tu Google Calendar.
+// Cópialo entero y pégalo en script.google.com (paso a paso en docs/GOOGLE.md del repo de Turbo).
+// Turbo lo usa para leer tus calendarios y para crear o borrar, en un calendario aparte llamado "Turbo",
+// lo que anotas con hora. La primera vez que Turbo lo llama deja guardada su clave: desde ahí, nadie más puede usarlo.
+
+var NOMBRE = 'Turbo';
+var FEED_VIEJO = 'Turbo 🏎️'; // el link .ics antiguo de Turbo: no se lee, para no ver todo doble
+var ZONA = 'America/Santiago';
+
+function doGet(e) {
+  return responder(function () {
+    autorizar(e.parameter.t);
+    return { eventos: listar(e.parameter.desde, e.parameter.hasta) };
+  });
+}
+
+function doPost(e) {
+  return responder(function () {
+    var b = JSON.parse(e.postData.contents);
+    autorizar(b.t);
+    return escribir(b);
+  });
+}
+
+function responder(fn) {
+  var out;
+  try { out = fn(); } catch (err) { out = { error: String((err && err.message) || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function autorizar(t) {
+  if (!t || String(t).length < 32) throw new Error('Falta la clave de Turbo');
+  var props = PropertiesService.getScriptProperties();
+  var guardada = props.getProperty('TOKEN');
+  if (!guardada) { props.setProperty('TOKEN', String(t)); return; }
+  if (guardada !== String(t)) throw new Error('Clave incorrecta');
+}
+
+var fecha = function (dia, hora) { return Utilities.parseDate(dia + ' ' + (hora || '00:00'), ZONA, 'yyyy-MM-dd HH:mm'); };
+var dia = function (d) { return Utilities.formatDate(d, ZONA, 'yyyy-MM-dd'); };
+var hora = function (d) { return Utilities.formatDate(d, ZONA, 'HH:mm'); };
+
+// Todos los calendarios que ves (menos feriados y el link viejo de Turbo), en hora de Chile.
+function listar(desde, hasta) {
+  var ini = fecha(desde), fin = fecha(hasta), out = [];
+  CalendarApp.getAllCalendars().forEach(function (cal) {
+    if (cal.isHidden() || !cal.isSelected()) return;
+    if (/#holiday@/.test(cal.getId()) || cal.getName() === FEED_VIEJO) return;
+    cal.getEvents(ini, fin).forEach(function (ev) {
+      try { if (ev.getMyStatus() === CalendarApp.GuestStatus.NO) return; } catch (err) {}
+      var todo = ev.isAllDayEvent();
+      var a = todo ? ev.getAllDayStartDate() : ev.getStartTime();
+      var z = todo ? ev.getAllDayEndDate() : ev.getEndTime();
+      out.push({
+        gid: ev.getId(), title: ev.getTitle(), allDay: todo, turboId: ev.getTag('turbo') || null,
+        dia1: todo ? Utilities.formatDate(a, Session.getScriptTimeZone(), 'yyyy-MM-dd') : dia(a), hora1: todo ? null : hora(a),
+        dia2: todo ? Utilities.formatDate(z, Session.getScriptTimeZone(), 'yyyy-MM-dd') : dia(z), hora2: todo ? null : hora(z),
+      });
+    });
+  });
+  return out;
+}
+
+// Crea y borra en el calendario "Turbo". Si un evento ya existe (misma marca), no lo repite.
+function escribir(b) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var cal = calendarioTurbo(), creados = {}, borrados = [];
+    (b.crear || []).forEach(function (it) {
+      var ini = fecha(it.dia, it.inicio), fin = fecha(it.dia, it.fin);
+      var ya = cal.getEvents(fecha(it.dia), new Date(fecha(it.dia).getTime() + 864e5)).filter(function (ev) { return ev.getTag('turbo') === it.id; })[0];
+      var ev = ya || cal.createEvent(it.title, ini, fin);
+      if (!ya) ev.setTag('turbo', it.id);
+      creados[it.id] = ev.getId();
+    });
+    (b.borrar || []).forEach(function (x) {
+      var ev = cal.getEventById(x.gid);
+      if (ev) ev.deleteEvent();
+      borrados.push(x.gid);
+    });
+    return { creados: creados, borrados: borrados };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function calendarioTurbo() {
+  return CalendarApp.getCalendarsByName(NOMBRE)[0] || CalendarApp.createCalendar(NOMBRE, { summary: 'Lo que anotas en Turbo', timeZone: ZONA });
+}
+
+// Para probar desde el editor (botón ▶ Ejecutar con "probar" elegido): pide los permisos y crea el calendario.
+function probar() {
+  calendarioTurbo();
+  Logger.log('Listo. Eventos de hoy: ' + listar(dia(new Date()), dia(new Date(Date.now() + 864e5))).length);
+}
