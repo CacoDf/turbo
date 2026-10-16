@@ -1,12 +1,12 @@
 // Revisión semanal (domingo, 5 min): números de la semana, 2 preguntas, resumen con IA
-// y 3 prioridades para la semana que viene. Luego planifica las metas.
+// y 3 prioridades para la semana que viene. (Metas está congelada: ya no se planifican pasos de metas.)
 import { state, update } from '../store.js';
 import { XP, lastDays } from '../game.js';
 import { esc, dayKey, addDays, fmtDuration } from '../util.js';
 import { toast, celebrate } from '../ui.js';
 import { hasServer, aiReview } from '../api.js';
 import { reward } from '../actions.js';
-import { mondayKey, planGoalWeek } from './goals.js';
+import { mondayKey } from './goals.js';
 import { rerender, go } from '../router.js';
 
 let step = 'stats'; // stats → ask → result
@@ -37,7 +37,6 @@ export function weekStats() {
     energia_promedio: avg('energy'),
     animo_promedio: avg('mood'),
     xp: log.reduce((a, e) => a + e.xp, 0),
-    metas: state.goals.filter(g => !g.done).map(g => ({ meta: g.title, pasos_semana: state.tasks.filter(t => t.goalId === g.id && t.done && days.includes(dayKey(new Date(t.doneAt)))).length })),
     evaluaciones_proximas: state.exams.filter(e => !e.done && e.date >= dayKey() && e.date <= dayKey(addDays(new Date(), 14))).map(e => `${e.title} (${e.date})`),
   };
 }
@@ -50,7 +49,7 @@ function fallback(s) {
   if (s.habitos_pct) highlights.push(`Cumpliste el ${s.habitos_pct}% de tus hábitos`);
   if (highlights.length < 2 && s.xp) highlights.push(`Ganaste ${s.xp} XP en ${s.dias_activos} ${s.dias_activos === 1 ? 'día' : 'días'} activos`);
   if (!highlights.length) highlights.push('Abriste Turbo y estás revisando tu semana: eso ya cuenta');
-  const priorities = [...s.evaluaciones_proximas.map(e => `Preparar ${e}`), ...s.atrasadas.map(t => `Cerrar: ${t}`), ...s.metas.map(m => `Avanzar en ${m.meta}`)].slice(0, 3);
+  const priorities = [...s.evaluaciones_proximas.map(e => `Preparar ${e}`), ...s.atrasadas.map(t => `Cerrar: ${t}`)].slice(0, 3);
   while (priorities.length < 3) priorities.push(['Hacer al menos 1 sesión de foco al día', 'Completar tus hábitos 5 de 7 días', 'Anotar en Capturar cada mañana'][priorities.length]);
   return { highlights, insight: s.dias_activos >= 5 ? 'Estuviste activo casi todos los días: la constancia te está funcionando.' : 'Hubo días sin actividad. Probemos con algo mínimo diario: solo 5 minutos.', priorities, message: '¡Vamos por otra semana! 🏎️' };
 }
@@ -127,7 +126,7 @@ export const actions = {
   rvPick: el => {
     picks[Number(el.dataset.i)] = el.value;
   },
-  rvSave: async () => {
+  rvSave: () => {
     const week = new Date().getDay() === 0 ? dayKey(addDays(new Date(), 1)) : mondayKey();
     update(s => {
       s.weekFocus = { week, items: picks.map(p => p.trim()).filter(Boolean).map(text => ({ text, done: false })) };
@@ -135,9 +134,7 @@ export const actions = {
       if (s.reviews.length > 30) s.reviews.length = 30;
     });
     reward(XP.review, 'review', 'Revisión semanal');
-    let planned = 0;
-    for (const g of state.goals.filter(x => !x.done && x.weekPlanned !== mondayKey())) planned += (await planGoalWeek(g.id, { quiet: true })) || 0;
-    celebrate(planned ? `🧭 ¡Semana lista! ${planned} pasos de tus metas agregados` : '🧭 ¡Semana lista!');
+    celebrate('🧭 ¡Semana lista!');
     step = 'stats';
     result = null;
     answers = { good: '', hard: '' };

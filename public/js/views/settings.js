@@ -45,7 +45,7 @@ export function render() {
 
     <section class="card">
       <h3>ℹ️ Turbo</h3>
-      <p class="muted small">Versión 3.0 · Fase 3. Hecha a tu medida.</p>
+      <p class="muted small">Turbo 2.0. Hecha a tu medida.</p>
       <button class="btn danger ghost small" data-act="setReset">Borrar todo y empezar de cero</button>
     </section>`;
 }

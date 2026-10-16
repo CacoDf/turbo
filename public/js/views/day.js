@@ -69,10 +69,11 @@ export function render() {
       <b>${offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : ''} ${fmtDateLong(date)}</b>
       <button class="icon-btn" data-act="dayShift" data-d="1" aria-label="Día siguiente">›</button>
     </div>
-    <div class="row quick day-links">
+    <div class="row wrap quick day-links">
       <button class="btn ghost small" data-act="go" data-to="rutinas">🔄 Rutinas</button>
       <button class="btn ghost small" data-act="go" data-to="habitos">🔁 Hábitos</button>
       <button class="btn ghost small" data-act="go" data-to="estudios">📚 Estudios</button>
+      <button class="btn ghost small" data-act="go" data-to="revision">🧭 Revisión</button>
     </div>
     ${offset === 0 ? `<div class="pill">${status}</div>` : ''}
     ${hasTraining ? '' : `<section class="card compact" data-act="dayEdit">🏋️ Agrega tus entrenamientos al horario para que Turbo planifique alrededor de ellos →</section>`}

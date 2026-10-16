@@ -52,3 +52,12 @@ test('Ahora y Día ya no ofrecen caminos a módulos congelados', async ({ page, 
     for (const d of CONGELADAS) expect(destinos, `${ruta} enlaza a ${d}`).not.toContain(d);
   }
 });
+
+test('desde Día se llega a Rutinas, Hábitos, Estudios y Revisión semanal', async ({ page, app }) => {
+  for (const [boton, ruta] of [['Rutinas', 'rutinas'], ['Hábitos', 'habitos'], ['Estudios', 'estudios'], ['Revisión', 'revision']]) {
+    await app.abrir('dia');
+    await page.locator('.day-links').getByRole('button', { name: new RegExp(boton) }).click();
+    await expect(page).toHaveURL(new RegExp(`#/${ruta}$`));
+    await expect(page.locator('#nav a.on')).toHaveText(/Día/);
+  }
+});
