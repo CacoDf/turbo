@@ -414,15 +414,21 @@ async function cronAvisos(env, now) {
 
   // 1. Google Calendar: el servidor lo lee solo cada hora, aunque la app no se abra.
   //    Ese minuto no planifica (la lectura gasta CPU); el siguiente ya ve el calendario nuevo.
+  //    Si algo de esto falla, igual se mandan los avisos ya calculados (paso 3).
   const leerCalendario = v.importIcs && (!v.importCache || now - v.importCache > 60 * 60000);
-  if (leerCalendario) await refrescarCalendario(env);
+  try {
+    if (leerCalendario) await refrescarCalendario(env);
 
-  // 2. Replanifica si cambió algo (estado, calendario, última apertura) o cada 3 horas.
-  const plan = v.plan && !leerCalendario ? await kvGet(env, 'plan') : null;
-  const firma = `${v.state || 0}|${v.importIcs ? v.importCache || 0 : 0}|${v.lastSeen || 0}`;
-  if (v.state && !leerCalendario && (!plan || plan.firma !== firma || now - plan.t > 3 * 3600000)) {
-    await replanificar(env, now, { visto: v.lastSeen || null, conCalendario: !!v.importIcs });
-    await kvSet(env, 'plan', { t: now, firma });
+    // 2. Replanifica si cambió algo (estado, calendario, la hora de la última apertura) o cada 3 horas.
+    //    La apertura entra por hora: abrir la app seguido no recalcula todo cada vez.
+    const plan = v.plan && !leerCalendario ? await kvGet(env, 'plan') : null;
+    const firma = `${v.state || 0}|${v.importIcs ? v.importCache || 0 : 0}|${Math.floor((v.lastSeen || 0) / 3600000)}`;
+    if (v.state && !leerCalendario && (!plan || plan.firma !== firma || now - plan.t > 3 * 3600000)) {
+      await replanificar(env, now, { visto: v.lastSeen || null, conCalendario: !!v.importIcs });
+      await kvSet(env, 'plan', { t: now, firma });
+    }
+  } catch (e) {
+    console.error('Cron: no se pudo leer el calendario o replanificar', e);
   }
 
   // 3. Manda los que tocan.

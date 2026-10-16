@@ -20,10 +20,19 @@ export const keyOf = n => { const x = fromDayNum(n); return `${x.y}-${pad(x.m)}-
 export const keyToNum = k => { const [y, m, d] = k.split('-').map(Number); return dayNum(y, m, d); };
 export const hmToMin = hm => { const [h, m] = String(hm || '00:00').split(':').map(Number); return h * 60 + (m || 0); };
 
-// Instante → { dia, min } de pared en Chile.
+// Instante → { dia, min } de pared en Chile. Con memoria por minuto: el cron lo pide muchas veces
+// por los mismos instantes y cada formateo cuesta CPU (el plan gratis da ~10 ms).
+const memo = new Map();
 export function enChile(t) {
-  const p = santiagoParts(new Date(t));
-  return { dia: dayNum(p.y, p.m, p.d), min: p.hh * 60 + p.mm };
+  const k = Math.floor(t / 60000);
+  let x = memo.get(k);
+  if (!x) {
+    const p = santiagoParts(new Date(k * 60000));
+    x = { dia: dayNum(p.y, p.m, p.d), min: p.hh * 60 + p.mm };
+    if (memo.size > 5000) memo.clear();
+    memo.set(k, x);
+  }
+  return x;
 }
 
 // Día y minuto de pared en Chile → instante (ms UTC). Corrige el desfase (-3 o -4 h) en dos vueltas.

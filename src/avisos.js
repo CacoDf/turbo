@@ -21,11 +21,14 @@ const F = {
     'Anota dónde quedaste y parte tranquilo.',
     'Guarda lo que estás haciendo: en un rato vuelves.',
   ],
+  // Buenos días: con tareas para hoy, solo con tareas sin fecha, o sin nada anotado.
   manana: [
-    (n, t) => (n ? `Hoy: ${cosas(n)}. La primera es ${t}.` : 'Anota qué tienes hoy (1 minuto).'),
-    (n, t) => (n ? `Tienes ${cosas(n)} ${n === 1 ? 'anotada' : 'anotadas'}. Parte con ${t}.` : '¿Qué tienes hoy? Anótalo en 1 minuto.'),
-    (n, t) => (n ? `${t} va primero. Después vemos el resto.` : 'Un minuto para anotar el día y listo.'),
+    (n, t) => `Hoy: ${cosas(n)}. La primera es ${t}.`,
+    (n, t) => `Para hoy tienes ${cosas(n)}. Parte con ${t}.`,
+    (n, t) => `${t} va primero. Después vemos el resto.`,
   ],
+  mananaLibre: [t => `Nada vence hoy. ¿Partimos con ${t}?`, t => `Día liviano. Si quieres: ${t}.`, t => `${t} te espera, sin apuro.`],
+  mananaVacia: ['Anota qué tienes hoy (1 minuto).', '¿Qué tienes hoy? Anótalo en 1 minuto.', 'Un minuto para anotar el día y listo.'],
   manana2: ['¿Partimos? Un minuto para mirar el día.', 'Sigue en pie: mira qué va primero.', 'Cuando puedas: 1 minuto y quedas ordenado.'],
   minimo: ['Solo 2 minutos. Una cosa chica y listo.', 'Volver cuesta poco: 2 minutos y listo.', 'Hoy basta con 2 minutos. Toca y partimos.'],
   minimo2: ['Sigue en pie: 2 minutos cuando puedas.', 'Una cosa chica, 2 minutos. Nada más.', '¿Ahora? Son solo 2 minutos.'],
@@ -36,12 +39,14 @@ const F = {
 
 const corto = (t, n = 40) => (String(t).length > n ? `${String(t).slice(0, n - 1)}…` : String(t));
 
-// Bloques con hora de un día: horario propio y eventos de Google (sin repetir los que empiezan a la misma hora).
+// Id corto y estable para un texto (títulos con tildes o emojis incluidos).
+const hash = s => { let h = 5381; for (const c of String(s)) h = ((h * 33) ^ c.codePointAt(0)) >>> 0; return h.toString(36); };
+
+// Bloques con hora de un día: horario propio y eventos de Google.
 function bloquesDel(state, eventos, key, dow) {
   const propios = (state.schedule || []).filter(b => b.start && b.end && (b.date ? b.date === key : b.days?.includes(dow)));
-  const horas = new Set(propios.map(b => b.start));
-  const google = eventos.filter(e => e.date === key && !e.allDay && e.start && e.end && !horas.has(e.start))
-    .map(e => ({ id: `cal${e.start}${e.title}`.replace(/\W+/g, '').slice(0, 60), title: e.title || '(sin título)', kind: CLASE.test(e.title || '') ? 'clase' : 'cal', start: e.start, end: e.end }));
+  const google = eventos.filter(e => e.date === key && !e.allDay && e.start && e.end)
+    .map(e => ({ id: `cal${e.start.replace(':', '')}-${hash(e.title)}`, title: e.title || '(sin título)', kind: CLASE.test(e.title || '') ? 'clase' : 'cal', start: e.start, end: e.end }));
   return [...propios, ...google];
 }
 
@@ -52,9 +57,9 @@ export function pendientesDel(state, key) {
 
 function primeraTarea(state, key) {
   const abiertas = (state.tasks || []).filter(t => t && !t.done);
-  const urgentes = pendientesDel(state, key);
-  const lista = (urgentes.length ? urgentes : abiertas).slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt || 0) - (b.createdAt || 0));
-  return { n: abiertas.length, titulo: lista[0] ? corto(lista[0].title) : '' };
+  const deHoy = pendientesDel(state, key);
+  const lista = (deHoy.length ? deHoy : abiertas).slice().sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt || 0) - (b.createdAt || 0));
+  return { hoy: deHoy.length, abiertas: abiertas.length, titulo: lista[0] ? corto(lista[0].title) : '' };
 }
 
 export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Date.now() }) {
@@ -84,18 +89,20 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
       }], { url: '/#/ahora', limite: inicio });
     }
 
+    // Buenos días o día mínimo: la misma serie (mismo id), así abrir la app después de uno no dispara el otro.
     const manana = at(s.morningAt);
     if (visto != null && manana - visto >= DIA_MINIMO) {
-      serie(`minimo-${key}`, manana, [
+      serie(`manana-${key}`, manana, [
         { title: '🌱 Día mínimo', body: frase(F.minimo, dia) },
         { title: '🌱 Día mínimo', body: frase(F.minimo2, dia, 2), tras: 20 },
       ], { url: '/?minimo=1#/ahora' });
     } else {
-      const { n, titulo } = primeraTarea(state, key);
+      const { hoy: n, abiertas, titulo } = primeraTarea(state, key);
+      const body = n ? frase(F.manana, dia)(n, titulo) : abiertas ? frase(F.mananaLibre, dia)(titulo) : frase(F.mananaVacia, dia);
       serie(`manana-${key}`, manana, [
-        { title: '☀️ Buenos días', body: frase(F.manana, dia)(n, titulo) },
+        { title: '☀️ Buenos días', body },
         { title: '☀️ ¿Partimos?', body: frase(F.manana2, dia, 2), tras: 20 },
-      ], { url: n ? '/#/ahora' : '/#/capturar' });
+      ], { url: abiertas ? '/#/ahora' : '/#/capturar' });
     }
 
     const log = state.habitLog?.[key] || {};
@@ -132,7 +139,7 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
   const f = state.focus;
   if (f?.endAt) {
     const body = f.minimo ? 'Listo 💚 Eso era todo por hoy.' : frase(F.foco, hoy);
-    serie(`foco-${f.start || f.endAt}`, f.endAt, [{ title: f.minimo ? '💚 Listo' : '🏁 ¡Tiempo!', body }], { url: '/#/foco', sinSilencio: true });
+    serie(`foco-${f.start || 0}-${f.endAt}`, f.endAt, [{ title: f.minimo ? '💚 Listo' : '🏁 ¡Tiempo!', body }], { url: '/#/foco', sinSilencio: true });
   }
 
   const sueno = hmToMin(s.sleepAt);
@@ -156,8 +163,8 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
       if (a.limite != null && at > a.limite) continue;
       if (deNoche(at)) continue;
     }
+    ultimo[a.serie] = at; // antes de filtrar por ventana: un paso ya pasado igual corre a los siguientes
     if (at < ahora - 5 * MIN || at > ahora + HORIZONTE) continue;
-    ultimo[a.serie] = at;
     porSerie[a.serie] = (porSerie[a.serie] || 0) + 1;
     if (porSerie[a.serie] > MAX_POR_SERIE) continue;
     out.push({

@@ -12,11 +12,11 @@ const SIN_RUIDO = { habits: [], routines: [] }; // los valores de fábrica agreg
 const plan = (state, extra = {}) => planAvisos({ ahora: a(MAR, '07:00'), ...extra, state: { ...SIN_RUIDO, ...state } });
 const ids = lista => lista.map(x => x.id);
 
-test('bloque propio y evento de Google avisan 15 min antes; si empiezan a la misma hora, un solo aviso', () => {
+test('bloque propio y evento de Google avisan 15 min antes; un evento distinto a la misma hora también', () => {
   const r = plan({ schedule: [{ id: 'gym', title: 'Gym', kind: 'entreno', days: [2], start: '18:00', end: '19:30' }] }, {
     eventos: [
       { title: 'Dentista', date: '2026-10-20', start: '16:00', end: '17:00', allDay: false },
-      { title: 'Gym (Google)', date: '2026-10-20', start: '18:00', end: '19:30', allDay: false },
+      { title: 'Prueba Cálculo', date: '2026-10-20', start: '18:00', end: '19:30', allDay: false },
       { title: 'Cumple', date: '2026-10-20', allDay: true },
     ],
   });
@@ -26,7 +26,18 @@ test('bloque propio y evento de Google avisan 15 min antes; si empiezan a la mis
   const dentista = r.find(x => x.title.startsWith('📅 Dentista'));
   assert.equal(hora(dentista.at), '15:45');
   assert.equal(dentista.url, '/#/ahora');
-  assert.ok(!r.some(x => /Gym \(Google\)|Cumple/.test(x.title)), 'sin duplicado ni eventos de todo el día');
+  assert.ok(r.some(x => x.title === '📅 Prueba Cálculo en 15 min'), 'la prueba de Google a la misma hora que el gym no se pierde');
+  assert.ok(!r.some(x => /Cumple/.test(x.title)), 'sin eventos de todo el día');
+});
+
+test('eventos con títulos que solo difieren en emojis o tildes no chocan', () => {
+  const r = plan({}, { eventos: [
+    { title: '🎂', date: '2026-10-20', start: '16:00', end: '17:00' }, { title: '🦷', date: '2026-10-20', start: '16:00', end: '17:00' },
+    { title: 'Café', date: '2026-10-20', start: '18:00', end: '19:00' }, { title: 'Cafe', date: '2026-10-20', start: '18:00', end: '19:00' },
+  ] });
+  const ev = r.filter(x => x.title.startsWith('📅'));
+  assert.equal(ev.length, 4);
+  assert.equal(new Set(ev.map(x => x.id)).size, 4);
 });
 
 test('buenos días: serie de 2 (09:00 y 09:20) y ninguna serie pasa de 3', () => {
@@ -63,6 +74,8 @@ test('en clase: el aviso se corre al final; si ya no sirve, se descarta', () => 
     ],
   });
   assert.deepEqual(r.filter(x => x.serie === 'manana-2026-10-20').map(x => hora(x.at)), ['11:30', '11:50'], 'buenos días al salir, y el segundo conserva sus 20 min');
+  const tarde = plan({ schedule: [{ id: 'c1', title: 'Clases', kind: 'clase', days: [2], start: '08:30', end: '11:30' }] }, { ahora: a(MAR, '11:40') });
+  assert.deepEqual(tarde.filter(x => x.serie === 'manana-2026-10-20').map(x => [x.paso, hora(x.at)]), [[2, '11:50']], 'replanificar a las 11:40 no pierde el segundo');
   assert.equal(hora(r.find(x => x.title.startsWith('📅 Reunión')).at), '11:30');
   assert.ok(!r.some(x => x.title.includes('Llamada')), 'avisar de la llamada después de que empezó no sirve');
   const catedra = r.find(x => x.title.includes('Cátedra'));
@@ -71,6 +84,16 @@ test('en clase: el aviso se corre al final; si ya no sirve, se descarta', () => 
     eventos: [{ title: 'Cátedra Finanzas', date: '2026-10-20', start: '12:00', end: '13:30' }, { title: 'Almuerzo', date: '2026-10-20', start: '12:15', end: '12:45' }],
   });
   assert.equal(hora(r2.find(x => x.id === 'habitos-2026-10-20').at), '13:30', 'silencio en la cátedra, no en cualquier evento');
+});
+
+test('buenos días: cuenta las tareas de hoy, no todas', () => {
+  const tasks = [{ id: 'a', title: 'Informe', due: '2026-10-20' }, ...Array.from({ length: 13 }, (_, i) => ({ id: `x${i}`, title: `Otra ${i}` }))];
+  const body = plan({ tasks }).find(x => x.id === 'manana-2026-10-20').body;
+  assert.match(body, /Informe/);
+  assert.doesNotMatch(body, /14/);
+  const libre = plan({ tasks: [{ id: 'b', title: 'Ordenar pieza' }] }).find(x => x.id === 'manana-2026-10-20');
+  assert.match(libre.body, /Ordenar pieza/);
+  assert.doesNotMatch(libre.body, /Hoy: /, 'sin tareas para hoy no dice "Hoy: N cosas"');
 });
 
 test('las frases rotan: los buenos días cambian de un día al siguiente', () => {
@@ -84,17 +107,17 @@ test('las frases rotan: los buenos días cambian de un día al siguiente', () =>
 test('día mínimo: tras 3 días sin abrir, los buenos días ofrecen 2 minutos y llevan a Ahora', () => {
   const ahora = a(MAR, '07:00');
   const r = plan({}, { visto: ahora - 3 * 86400000 });
-  const m = r.find(x => x.id === 'minimo-2026-10-20');
-  assert.equal(m.title, '🌱 Día mínimo');
+  const m = r.find(x => x.id === 'manana-2026-10-20');
+  assert.equal(m.title, '🌱 Día mínimo', 'misma serie que los buenos días: abrir después de uno no dispara el otro');
   assert.equal(m.url, '/?minimo=1#/ahora');
   assert.match(m.body, /2 minutos/);
   assert.doesNotMatch(m.body, /días sin|no abriste|abandon/i, 'sin culpa');
-  assert.ok(!r.some(x => x.id === 'manana-2026-10-20'));
-  const r2 = plan({}, { visto: ahora - 1 * 86400000 });
-  assert.ok(r2.some(x => x.id === 'manana-2026-10-20') && !r2.some(x => x.serie.startsWith('minimo')));
+  const titulo = (lista, id) => lista.find(x => x.id === id)?.title;
+  assert.equal(titulo(plan({}, { visto: ahora - 1 * 86400000 }), 'manana-2026-10-20'), '☀️ Buenos días');
   const r3 = plan({}, { visto: ahora - 2.5 * 86400000 });
-  assert.ok(r3.some(x => x.id === 'manana-2026-10-20') && r3.some(x => x.id === 'minimo-2026-10-21'), 'mañana ya serían 3 días');
-  assert.ok(plan({}, { visto: null }).some(x => x.id === 'manana-2026-10-20'), 'sin dato de apertura: normal');
+  assert.equal(titulo(r3, 'manana-2026-10-20'), '☀️ Buenos días');
+  assert.equal(titulo(r3, 'manana-2026-10-21'), '🌱 Día mínimo', 'mañana ya serían 3 días');
+  assert.equal(titulo(plan({}, { visto: null }), 'manana-2026-10-20'), '☀️ Buenos días', 'sin dato de apertura: normal');
 });
 
 test('rutina hecha no avisa; pendiente sí', () => {
@@ -107,7 +130,9 @@ test('fin del foco a la 01:00 sí avisa (lo partió él), con id propio por sesi
   const ahora = a(MAR, '00:50');
   const r = plan({ focus: { start: ahora, endAt: a(MAR, '01:00'), plannedMin: 10 } }, { ahora });
   const f = r.find(x => x.url === '/#/foco');
-  assert.equal(f.id, `foco-${ahora}`);
+  assert.equal(f.id, `foco-${ahora}-${a(MAR, '01:00')}`);
+  const alargado = plan({ focus: { start: ahora, endAt: a(MAR, '01:15'), plannedMin: 25 } }, { ahora }).find(x => x.url === '/#/foco');
+  assert.notEqual(alargado.id, f.id, 'alargar el foco da un aviso nuevo (el primero ya se mandó)');
   assert.equal(f.title, '🏁 ¡Tiempo!');
   assert.equal(hora(f.at), '01:00');
   const m = plan({ focus: { start: ahora, endAt: a(MAR, '01:00'), plannedMin: 2, minimo: true } }, { ahora }).find(x => x.url === '/#/foco');

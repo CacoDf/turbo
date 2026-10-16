@@ -116,7 +116,7 @@ export function marcarVisto() {
     antes = Number(localStorage.getItem(VISTO)) || null;
     localStorage.setItem(VISTO, String(Date.now()));
   } catch {}
-  if (hasServer() && Date.now() - ultimoSeen > 10 * 60000) {
+  if (hasServer() && Date.now() - ultimoSeen > 30000) { // arranque + volver a la vez = un solo aviso
     ultimoSeen = Date.now();
     call('seen', { method: 'POST' }).catch(e => console.warn('Aviso de apertura falló', e));
   }

@@ -100,6 +100,60 @@ test('Google Calendar: el cron lo lee solo cada hora y avisa de sus eventos sin 
   } finally { await w.cerrar(); }
 });
 
+test('alargar el foco después del aviso: el nuevo fin también avisa', async () => {
+  const nav = await navegador('https://push.test/k5');
+  const w = await servidorCon(nav);
+  try {
+    const t0 = Date.now();
+    const foco = { start: t0 - MIN, endAt: t0 + 2 * MIN, plannedMin: 3 };
+    await w.req('PUT', 'state', { updatedAt: t0, state: estado(t0, { focus: foco }) });
+    await w.cron(t0);
+    await w.cron(t0 + 3 * MIN);
+    assert.equal(w.pushes.length, 1);
+    await w.req('PUT', 'state', { updatedAt: t0 + 1, state: estado(t0, { focus: { ...foco, endAt: t0 + 17 * MIN, plannedMin: 18 } }) }); // "Sigo 15 min más"
+    await w.cron(t0 + 4 * MIN);
+    await w.cron(t0 + 18 * MIN);
+    assert.equal(w.pushes.length, 2);
+    assert.equal((await descifrar(nav, w.pushes[1].body)).notification.title, '🏁 ¡Tiempo!');
+  } finally { await w.cerrar(); }
+});
+
+test('día mínimo y luego abre la app: no llega además un "Buenos días"', async () => {
+  const nav = await navegador('https://push.test/k6');
+  const w = await servidorCon(nav);
+  try {
+    const r = Date.now();
+    const db = await w.mf.getD1Database('DB');
+    await w.req('POST', 'seen');
+    await db.prepare("UPDATE kv SET updated = ? WHERE k = 'lastSeen'").bind(r - 4 * 86400000).run();
+    await w.req('PUT', 'state', { updatedAt: r, state: estado(r, { settings: { morningAt: chile(r - 10 * MIN).hm }, tasks: [{ id: 't', title: 'Informe', due: chile(r).key }] }) });
+    await w.cron(r - 12 * MIN);
+    await w.cron(r - 9 * MIN);
+    assert.equal(w.pushes.length, 1);
+    await w.req('POST', 'seen'); // toca el aviso y abre la app
+    await w.cron(r - 8 * MIN);
+    await w.cron(r + 15 * MIN);
+    const titulos = (await Promise.all(w.pushes.map(p => descifrar(nav, p.body)))).map(m => m.notification.title);
+    assert.deepEqual(titulos, ['🌱 Día mínimo']);
+  } finally { await w.cerrar(); }
+});
+
+test('si el calendario falla, igual se mandan los avisos que tocan', async () => {
+  const nav = await navegador('https://push.test/k7');
+  const w = await servidorCon(nav);
+  try {
+    const t0 = Date.now();
+    await w.req('PUT', 'state', { updatedAt: t0, state: estado(t0, { focus: { start: t0 - MIN, endAt: t0 + 2 * MIN, plannedMin: 3 } }) });
+    await w.cron(t0);
+    const db = await w.mf.getD1Database('DB');
+    // Link de Google guardado y sin lectura reciente: el cron intenta leerlo y la lectura revienta.
+    await db.prepare("INSERT INTO kv (k, v, updated) VALUES ('importIcs', ?, ?)").bind(JSON.stringify('https://ics.test/roto.ics'), t0).run();
+    w.externo.set('https://ics.test/roto.ics', () => { throw new Error('Google caído'); });
+    await w.cron(t0 + 3 * MIN);
+    assert.equal(w.pushes.length, 1, 'el fin del foco llega igual');
+  } finally { await w.cerrar(); }
+});
+
 test('día mínimo: tras 3 días sin abrir, el aviso lleva a Ahora con el modo de 2 minutos', async () => {
   const nav = await navegador('https://push.test/k4');
   const w = await servidorCon(nav);
