@@ -5,7 +5,7 @@
 | Fase 0 · Red de seguridad | cerrada | 2026-10-16 | `npm test` con WebKit: 13/13 worker, 24/24 pantallas |
 | Fase 1 · Recortar | cerrada y publicada en `main` | 2026-10-16 | 4 pestañas, datos intactos, índice `idx_reminders_due`. WebKit en el PC de Joaquín: 14/14 worker, 28/28 pantallas. Después se agregó el arreglo de Capturar (ya no abre el teclado sola): 29/29 con Chromium; falta correr WebKit y confirmar en el iPhone que la barra ya no se descuadra |
 | Sesión 1 · Avisos sin abrir | publicada en `main` y probada en el iPhone (todo bien) | 2026-10-16 | Avisos calculados por el servidor (cron) desde el respaldo y Google Calendar, push declarativo cifrado, número en el ícono, silencio 00:30–06:00 y en clases, día mínimo. `npm test` en la nube con Chromium: 36/36 worker, 34/34 pantallas. Falta: WebKit en el PC y la prueba de 2 días sin abrir con el iPhone bloqueado |
-| Sesión 2 · Lista única dentro de Turbo | publicada en `main`, falta probar en el iPhone | 2026-10-16 | Capturar decide tarea o evento ("dentista jueves 15:00" → evento en Día con aviso del cron), dictado con comas se separa, ↻ en Día, barra pegada abajo. Nube con Chromium: 45/45 worker, 41/41 pantallas. Claude la probó como usuario (Playwright + cron local) antes de pasársela |
+| Sesión 2 · Lista única dentro de Turbo | cerrada, publicada y probada en el iPhone (todo bien) | 2026-10-16 | Capturar decide tarea o evento ("dentista jueves 15:00" → evento en Día con aviso del cron), dictado con comas se separa, ↻ en Día, barra pegada abajo. Nube con Chromium: 45/45 worker, 41/41 pantallas. Claude la probó como usuario (Playwright + cron local) antes de pasársela. Después: eventos que se topan van lado a lado en Día. En el iPhone: barra arreglada, dentista detectado y visible junto a Google |
 | Sesión 3 · Puente con Google y huecos | pendiente | | |
 | Sesión 4 · Foco y Ahora de verdad | pendiente | | |
 | Sesión 5 · Hábitos y juego | pendiente | | |
@@ -14,4 +14,4 @@
 
 Plan v2 acordado con Joaquín el 16-10-2026: avisos sin abrir y lista única primero, look al final (con impeccable), sin espera fija de 7 días. En su lugar hay un freno de uso: antes de cada sesión, Claude pregunta si abrió Turbo estos días y qué le molestó. Cada sesión termina publicada y probada en el iPhone el mismo día.
 
-Siguiente: probar la Sesión 2 en el iPhone (anotar "dentista jueves 15:00", aviso con el teléfono bloqueado, barra en Capturar y Foco, ↻ en Día). Después, Sesión 3 (Turbo y Google Calendar como uno solo, en los dos sentidos). De la Sesión 1 queda pendiente confirmar que los avisos siguen llegando tras 2 días sin abrir la app.
+Siguiente: Sesión 3 (Turbo y Google Calendar como uno solo, en los dos sentidos). De la Sesión 1 queda pendiente confirmar que los avisos siguen llegando tras 2 días sin abrir la app.
