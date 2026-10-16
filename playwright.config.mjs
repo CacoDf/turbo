@@ -7,8 +7,10 @@ import { join } from 'node:path';
 
 const raiz = process.env.PLAYWRIGHT_BROWSERS_PATH || join(homedir(), process.platform === 'win32' ? 'AppData/Local/ms-playwright' : '.cache/ms-playwright');
 const hayWebkit = existsSync(raiz) && readdirSync(raiz).some(d => d.startsWith('webkit'));
-const usarChromium = process.env.TURBO_BROWSER === 'chromium' || !hayWebkit;
-if (usarChromium) console.warn('⚠️  WebKit no está instalado: usando Chromium con viewport de iPhone 15. En tu PC corre: npx playwright install webkit');
+// Chromium solo si se pide a propósito (TURBO_BROWSER=chromium, p. ej. en la nube). Si no, WebKit es obligatorio.
+const usarChromium = process.env.TURBO_BROWSER === 'chromium';
+if (usarChromium) console.warn('⚠️  Usando Chromium con viewport de iPhone 15 (no es WebKit).');
+else if (!hayWebkit) throw new Error('Falta WebKit. Corre: npx playwright install webkit (o TURBO_BROWSER=chromium para probar sin WebKit).');
 
 const iphone = devices['iPhone 15'];
 const use = usarChromium
@@ -19,6 +21,6 @@ export default defineConfig({
   testDir: 'tests/ui',
   outputDir: 'test-results',
   reporter: 'list',
-  use: { ...use, baseURL: 'http://localhost:8787' },
-  webServer: { command: 'node tests/serve.mjs', url: 'http://localhost:8787', reuseExistingServer: true },
+  use: { ...use, baseURL: 'http://localhost:8791' },
+  webServer: { command: 'node tests/serve.mjs', url: 'http://localhost:8791', reuseExistingServer: false },
 });

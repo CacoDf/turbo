@@ -2,6 +2,7 @@
   "name": "turbo",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22" },
   "scripts": {
     "test": "node --test \"tests/worker/*.test.mjs\" && playwright test",
     "test:worker": "node --test \"tests/worker/*.test.mjs\"",

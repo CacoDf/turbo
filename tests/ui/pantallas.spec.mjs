@@ -6,7 +6,11 @@ const RUTAS = ['ahora', 'dia', 'capturar', 'foco', 'habitos', 'tareas', 'mas', '
 
 for (const ruta of RUTAS) {
   test(`pantalla ${ruta}`, async ({ page, app }) => {
+    await app.abrir('ahora');
+    const ahora = await page.locator('#app').innerHTML();
     await app.abrir(ruta);
+    // Una ruta desconocida cae en Ahora (main.js): si pasa, la vista no existe y la captura sería engañosa.
+    if (ruta !== 'ahora') await expect.poll(() => page.locator('#app').innerHTML(), { message: `"${ruta}" dibuja Ahora` }).not.toBe(ahora);
     await expect(page.locator('#app h1, #app h2, #app h3').first()).toBeVisible();
     await page.screenshot({ path: `tests/capturas/${ruta}.png`, fullPage: true });
   });
@@ -16,6 +20,7 @@ test('la barra de navegación aparece y no se sale del ancho del iPhone', async 
   await app.abrir('ahora');
   const nav = page.locator('#nav a');
   await expect(nav.first()).toBeVisible();
+  await expect(nav).toHaveCount(5); // Fase 1: cambiar a 4 (Ahora, Día, Capturar, Foco)
   const ancho = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(ancho).toBeLessThanOrEqual(393);
 });

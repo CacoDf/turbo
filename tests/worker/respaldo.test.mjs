@@ -21,8 +21,9 @@ test('clave mala: mensaje claro', async () => {
   await assert.rejects(exportar({ url: 'https://turbo.test', secret: 'mala', dir, fetchFn: via }), /clave.*no coincide/i);
 });
 
-test('dirección inválida', async () => {
+test('dirección inválida o sin cifrar (la clave no viaja por http)', async () => {
   await assert.rejects(exportar({ url: 'turbo.test', secret: SECRETO, dir, fetchFn: via }), /https:\/\//);
+  await assert.rejects(exportar({ url: 'http://turbo.tu-sitio.com', secret: SECRETO, dir, fetchFn: via }), /sin cifrar/);
 });
 
 test('con datos: escribe el JSON completo con fecha en el nombre', async () => {
@@ -31,6 +32,7 @@ test('con datos: escribe el JSON completo con fecha en el nombre', async () => {
   const r = await exportar({ url: 'https://turbo.test/', secret: SECRETO, dir, fetchFn: via, ahora: new Date(2026, 9, 20, 9, 5) });
   assert.match(r.ruta, /turbo-2026-10-20-0905\.json$/);
   assert.equal(r.tareas, 2);
+  assert.ok(r.horas > 24, 'avisa la antigüedad del respaldo (updatedAt 777 es viejísimo)');
   const guardado = JSON.parse(await readFile(r.ruta, 'utf8'));
   assert.equal(guardado.updatedAt, 777);
   assert.deepEqual(guardado.state, estado);

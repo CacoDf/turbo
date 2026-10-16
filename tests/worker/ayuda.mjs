@@ -1,5 +1,8 @@
 // Worker real (workerd) con D1 real en memoria, vía Miniflare. Lo externo (push, Gemini, .ics) se simula.
 import { Miniflare } from 'miniflare';
+import { fileURLToPath } from 'node:url';
+
+const SRC = fileURLToPath(new URL('../../src', import.meta.url));
 
 export const SECRETO = 'secreto';
 
@@ -7,8 +10,8 @@ export async function crearMundo(extra = {}) {
   const mundo = { pushes: [], geminiReply: null, externo: new Map(), fetchesExternos: [] };
   mundo.mf = new Miniflare({
     modules: true,
-    scriptPath: 'src/worker.js',
-    modulesRoot: 'src',
+    scriptPath: `${SRC}/worker.js`,
+    modulesRoot: SRC,
     compatibilityDate: '2025-09-01',
     d1Databases: { DB: 'test-db' },
     bindings: { APP_SECRET: SECRETO, ...extra },

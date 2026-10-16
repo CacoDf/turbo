@@ -33,9 +33,12 @@ test('marcar un hábito lo deja hecho y se guarda', async ({ page, app }) => {
 
 test('los datos siguen ahí después de recargar', async ({ page, app }) => {
   await app.abrir('ahora');
+  // Se agrega un dato nuevo y, tras recargar, nadie vuelve a sembrar: si la app lo perdiera, falla.
+  await page.evaluate(k => { const s = JSON.parse(localStorage.getItem(k)); s.tasks.push({ ...s.tasks[0], id: 't3', title: 'Tarea nueva' }); localStorage.setItem(k, JSON.stringify(s)); }, KEY);
   await page.reload();
+  await expect(page.getByText('Estudiar finanzas').first()).toBeVisible();
   const s = await app.guardado();
-  expect(s.tasks.map(t => t.id)).toEqual(['t1', 't2']);
+  expect(s.tasks.map(t => t.id)).toEqual(['t1', 't2', 't3']);
 });
 
 test('un estado viejo e incompleto se completa sin perder tareas', async ({ page, errores }) => {

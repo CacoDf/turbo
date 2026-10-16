@@ -24,7 +24,7 @@ export const test = base.extend({
   },
   app: async ({ page, errores }, use) => {
     await page.clock.install({ time: HOY });
-    await page.addInitScript(([k, s]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, s); }, [KEY, JSON.stringify(estadoDePrueba())]);
+    await page.addInitScript(([k, s]) => { if (sessionStorage.getItem('sembrado')) return; sessionStorage.setItem('sembrado', '1'); localStorage.setItem(k, s); }, [KEY, JSON.stringify(estadoDePrueba())]);
     await use({
       async abrir(ruta = '') {
         await page.goto(`/#/${ruta}`);

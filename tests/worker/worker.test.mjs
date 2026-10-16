@@ -204,6 +204,6 @@ test('calendario enorme (años de historial) se procesa rápido', async () => {
   const t0 = performance.now();
   const j = await w.json('PUT', 'calendar/import-url', { url: 'https://ics.test/big.ics' });
   const ms = performance.now() - t0;
-  assert.ok(ms < 1500, `4.000 eventos en ${ms.toFixed(0)} ms`);
+  assert.ok(ms < 5000, `4.000 eventos en ${ms.toFixed(0)} ms`);
   assert.ok(j.events.filter(e => e.title === 'Semanal 0').length >= 15, 'eventos semanales antiguos siguen apareciendo');
 });

@@ -10,7 +10,7 @@ IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, 
 
 - Probar la app en el PC: `python -m http.server 8787 --directory public` y abrir http://localhost:8787
 - Instalar (una vez): `npm install` y `npx playwright install webkit`
-- Pruebas: `npm test` (pruebas del worker con Miniflare + Playwright con WebKit en viewport iPhone 15). Capturas en `tests/capturas/`. Solo worker: `npm run test:worker`. Solo pantallas: `npm run test:ui`. Si WebKit no está disponible (ej. la nube) cae a Chromium con el mismo viewport y lo avisa.
+- Pruebas: `npm test` (pruebas del worker con Miniflare + Playwright con WebKit en viewport iPhone 15). Capturas en `tests/capturas/`. Solo worker: `npm run test:worker`. Solo pantallas: `npm run test:ui`. WebKit es obligatorio; solo en la nube (sin WebKit) usa `TURBO_BROWSER=chromium npm test`.
 - Respaldo de datos desde el servidor a `respaldos/*.json`: `npm run respaldo` (hazlo antes de cualquier migración; la carpeta no se sube a git).
 - Publicar: Cloudflare publica solo al subir a `main`. Trabaja en la rama `turbo-2` y nunca hagas push a `main` sin que Joaquín lo pida.
 
