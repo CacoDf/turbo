@@ -156,10 +156,11 @@ select.input { appearance: none; }
 .row.wrap .input { flex: 1 1 120px; width: auto; }
 /* Encabezado que se queda arriba (Día se desplaza solo hasta "ahora" y esconde el ↻). */
 .top.sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); margin-top: calc(-1 * (var(--safe-top) + 12px)); padding-top: calc(var(--safe-top) + 12px); margin-bottom: 0; padding-bottom: 12px; }
-/* Capturar: fecha y hora comparten fila en el iPhone (los date/time de iOS traen un ancho mínimo grande). */
-.item .row.wrap .input[type=date] { flex: 1.5 1 0; min-width: 0; }
-.item .row.wrap .input[type=time] { flex: 1 1 0; min-width: 0; }
-.item .row.wrap .icon-btn { flex: 0 0 44px; }
+/* Capturar: día y hora comparten fila en el iPhone (los date/time de iOS traen un ancho mínimo grande). */
+.item .row.wrap > label { flex: 1.4 1 0; min-width: 0; margin-top: 0; }
+.item .row.wrap > label + label { flex: 1 1 0; }
+.item .row.wrap > label .input { width: 100%; min-width: 0; }
+.item .row.wrap > .icon-btn { flex: 0 0 44px; align-self: flex-end; margin-bottom: 6px; }
 label.muted { display: block; margin-top: 8px; }
 .toggle { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
 .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }

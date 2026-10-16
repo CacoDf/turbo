@@ -10,11 +10,21 @@ let offset = 0;
 let editing = false;
 let refreshing = false;
 
-// Abre Día en una fecha concreta (YYYY-MM-DD), dentro del rango que se puede navegar.
-export function setDayOffset(key) {
-  offset = Math.max(-7, Math.min(14, daysBetween(dayKey(), key)));
+const MAX_AHEAD = 60; // días hacia adelante que se pueden mirar (lo que trae Google Calendar)
+
+// Abre Día en una fecha concreta (YYYY-MM-DD): al guardar un evento, se ve dónde quedó.
+export function showDay(key) {
+  offset = Math.max(-7, Math.min(MAX_AHEAD, daysBetween(dayKey(), key)));
   editing = false;
 }
+
+// Al salir de Día vuelve a hoy: la próxima vez parte en "ahora", no en el último día mirado.
+window.addEventListener('hashchange', () => {
+  if (!location.hash.startsWith('#/dia')) {
+    offset = 0;
+    editing = false;
+  }
+});
 const START = 7 * 60;
 const END = 24 * 60;
 const PX = 0.9; // píxeles por minuto
@@ -100,7 +110,7 @@ export function mount() {
 
 export const actions = {
   dayShift: el => {
-    offset = Math.max(-7, Math.min(14, offset + Number(el.dataset.d)));
+    offset = Math.max(-7, Math.min(MAX_AHEAD, offset + Number(el.dataset.d)));
     rerender();
   },
   dayRefresh: async () => {

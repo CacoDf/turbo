@@ -267,7 +267,13 @@ async function gemini(env, system, prompt, schema) {
 
 const PERSONA = 'Eres el asistente de Turbo, una app para una persona con TDAH: estudiante universitario en Chile que entrena en el gimnasio. Entiendes modismos chilenos (pega = trabajo, ramo = asignatura, prueba/control/certamen = evaluación, polola = novia). Respondes siempre en español de Chile, simple y directo.';
 
-const hoyChile = () => { const n = santiagoParts(); return keyOf(dayNum(n.y, n.m, n.d)); };
+
+// Sin fecha, una hora es hoy si todavía no pasa en Chile; si ya pasó, mañana (igual que localParse).
+function diaParaHora(start) {
+  const n = santiagoParts();
+  const hoy = dayNum(n.y, n.m, n.d);
+  return keyOf(start > `${pad(n.hh)}:${pad(n.mm)}` ? hoy : hoy + 1);
+}
 
 async function aiCapture(env, text, today) {
   if (!text?.trim()) return [];
@@ -309,7 +315,7 @@ Reglas:
       // Con hora es un evento de una hora; sin fecha, hoy.
       const start = `${m[1].padStart(2, '0')}:${m[2]}`;
       const fin = Math.min(23 * 60 + 59, Number(m[1]) * 60 + Number(m[2]) + 60);
-      return { kind: 'evento', title, date: due || hoyChile(), start, end: `${pad(Math.floor(fin / 60))}:${pad(fin % 60)}` };
+      return { kind: 'evento', title, date: due || diaParaHora(start), start, end: `${pad(Math.floor(fin / 60))}:${pad(fin % 60)}` };
     }
     return {
       title,

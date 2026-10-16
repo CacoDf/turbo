@@ -1,11 +1,11 @@
 // "Vaciar la cabeza": escribir o dictar en desorden y convertirlo en tareas.
 import { AREAS, localParse } from '../planner.js';
 import { XP } from '../game.js';
-import { esc, dayKey, validHm, defaultEnd } from '../util.js';
+import { esc, dayKey, parseDayKey, validHm, defaultEnd, DAY_SHORT } from '../util.js';
 import { toast } from '../ui.js';
 import { hasServer, aiCapture } from '../api.js';
 import { addTasks, addEvents, reward } from '../actions.js';
-import { setDayOffset } from './day.js';
+import { showDay } from './day.js';
 import { rerender, go } from '../router.js';
 
 let draft = '';
@@ -16,17 +16,19 @@ const MINUTES = [5, 10, 15, 25, 45, 60, 90, 120];
 
 const isEvent = it => it.kind === 'evento';
 
+// Fecha y hora con su nombre a la vista: en iPhone un campo de hora vacío no dice nada.
+const when = (it, i, dateField) => `<div class="row wrap">
+  <label class="grow muted small">Día<input class="input" type="date" value="${(dateField === 'date' ? it.date : it.due) || ''}" data-change="capField" data-i="${i}" data-f="${dateField}"></label>
+  <label class="grow muted small">${isEvent(it) ? 'Hora' : 'Hora (opcional)'}<input class="input" type="time" value="${it.start || ''}" data-change="capField" data-i="${i}" data-f="start"></label>
+  <button class="icon-btn" data-act="capRemove" data-i="${i}" aria-label="Quitar">✕</button>
+</div>`;
+
 function itemRow(it, i) {
-  const rm = `<button class="icon-btn" data-act="capRemove" data-i="${i}" aria-label="Quitar">✕</button>`;
   if (isEvent(it)) {
     return `<div class="card item">
       <div class="label">📅 EVENTO</div>
       <input class="input" value="${esc(it.title)}" data-change="capField" data-i="${i}" data-f="title">
-      <div class="row wrap">
-        <input class="input" type="date" value="${it.date || ''}" data-change="capField" data-i="${i}" data-f="date">
-        <input class="input" type="time" value="${it.start || ''}" data-change="capField" data-i="${i}" data-f="start" aria-label="Hora">
-        ${rm}
-      </div>
+      ${when(it, i, 'date')}
     </div>`;
   }
   return `<div class="card item">
@@ -38,10 +40,8 @@ function itemRow(it, i) {
       <select class="input" data-change="capField" data-i="${i}" data-f="minutes">
         ${MINUTES.map(m => `<option value="${m}" ${m === Number(it.minutes) ? 'selected' : ''}>${m} min</option>`).join('')}
       </select>
-      <input class="input" type="date" value="${it.due || ''}" data-change="capField" data-i="${i}" data-f="due">
-      <input class="input" type="time" value="" data-change="capField" data-i="${i}" data-f="start" aria-label="Ponle hora para que sea evento" title="Ponle hora para que sea evento">
-      ${rm}
     </div>
+    ${when(it, i, 'due')}
   </div>`;
 }
 
@@ -97,16 +97,20 @@ export const actions = {
     if (!it) return;
     const f = el.dataset.f;
     it[f] = el.value;
+    // Un evento siempre tiene día: si se borra la fecha, queda hoy (así no se pierde al guardar).
+    if (f === 'date' && isEvent(it) && !it.date) it.date = dayKey();
     if (f !== 'start') return;
-    // Poner o quitar la hora convierte la tarea en evento (y al revés).
+    // Poner o quitar la hora convierte la tarea en evento (y al revés). Solo entonces se redibuja:
+    // rehacer la pantalla cerraría la rueda de la hora en el iPhone a medio elegir.
     if (isEvent(it) && !validHm(el.value)) {
       Object.assign(it, { kind: undefined, area: 'personal', minutes: 25, due: it.date || null, start: undefined, end: undefined });
+      rerender();
     } else if (!isEvent(it) && validHm(el.value)) {
       Object.assign(it, { kind: 'evento', date: it.due || dayKey(), end: defaultEnd(el.value) });
+      rerender();
     } else if (isEvent(it)) {
       it.end = defaultEnd(el.value);
     }
-    rerender();
   },
   capRemove: el => {
     items.splice(Number(el.dataset.i), 1);
@@ -120,14 +124,16 @@ export const actions = {
     const clean = items.filter(i => i.title?.trim());
     const events = clean.filter(isEvent);
     const tasks = clean.filter(i => !isEvent(i));
-    const dates = addEvents(events);
+    const saved = addEvents(events);
     addTasks(tasks);
-    const label = [dates.length && `${dates.length} ${dates.length === 1 ? 'evento' : 'eventos'}`, tasks.length && `${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'}`].filter(Boolean).join(' y ');
-    reward(XP.capture, 'capture', `Anotaste ${label || 'algo'}`);
+    // Con un solo evento, el aviso dice dónde quedó: no hay que buscarlo.
+    const one = saved.length === 1 ? `${saved[0].title}: ${DAY_SHORT[parseDayKey(saved[0].date).getDay()].toLowerCase()} ${parseDayKey(saved[0].date).getDate()} a las ${saved[0].start}` : '';
+    const label = [saved.length && `${saved.length} ${saved.length === 1 ? 'evento' : 'eventos'}`, tasks.length && `${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'}`].filter(Boolean).join(' y ');
+    reward(XP.capture, 'capture', one && !tasks.length ? one : `Anotaste ${label || 'algo'}`);
     draft = '';
     items = null;
-    if (dates.length) {
-      setDayOffset(dates.sort()[0]);
+    if (saved.length) {
+      showDay(saved.map(e => e.date).sort()[0]);
       go('dia');
     } else {
       go('ahora');

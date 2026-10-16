@@ -153,3 +153,17 @@ test('↻ en Día trae lo que se anotó en Google Calendar (también un evento n
   expect(pedidos.some(u => /force=1/.test(u)), 'el botón fuerza la lectura').toBe(true);
   await page.screenshot({ path: 'tests/capturas/dia-google-y-turbo.png' });
 });
+
+test('un evento lejano (más de 14 días) abre Día en su fecha y, al salir y volver, Día parte en hoy', async ({ page, app }) => {
+  await app.abrir('capturar');
+  await page.locator('#capText').fill('certamen 23/11 a las 9');
+  await page.getByRole('button', { name: /Ordenar/ }).click();
+  await page.screenshot({ path: 'tests/capturas/capturar-lejano.png' });
+  await page.getByRole('button', { name: /Guardar 1 evento/ }).click();
+  await expect(page.getByText(/Lunes 23 nov/)).toBeVisible();
+  await expect(page.locator('.block', { hasText: 'Certamen' })).toBeVisible();
+  await expect(page.getByText(/Certamen: lun 23 a las 09:00/)).toBeVisible();
+  await page.locator('#nav a', { hasText: 'Ahora' }).click();
+  await page.locator('#nav a', { hasText: 'Día' }).click();
+  await expect(page.getByText(/Hoy Martes 20 oct/)).toBeVisible();
+});

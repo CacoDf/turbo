@@ -47,8 +47,9 @@ export function addEvents(items) {
       if (!date || !start) continue;
       let end = validHm(it.end);
       if (!end || end <= start) end = defaultEnd(start);
-      s.schedule.push({ id: uid(), title: it.title, kind: 'otro', days: [], date, start, end, src: 'turbo' });
-      ok.push(date);
+      const ev = { id: uid(), title: it.title, kind: 'otro', days: [], date, start, end, src: 'turbo' };
+      s.schedule.push(ev);
+      ok.push(ev);
     }
   });
   return ok;

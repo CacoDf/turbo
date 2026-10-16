@@ -103,11 +103,16 @@ const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles|miercoles', 'jueves'
 // Borde de palabra que entiende tildes (\b de JS solo conoce ASCII).
 const word = re => new RegExp(`(?<![\\p{L}\\d])(?:${re})(?![\\p{L}\\d])`, 'u');
 
+// "mañana" como día, no "de la mañana" (hora).
+const MANANA = '(?<!(?:de|en|por) la )mañana';
+// "el 3" o "el 3 de noviembre": un día del mes (no "el 3 a las…" ni "el 3h").
+const EL_DIA = /(?:^|\s)el\s+(\d{1,2})(?![\d:./-]|\s*(?:h\b|hrs?\b|am\b|pm\b))/i;
+
 function detectDue(text) {
   const t = text.toLowerCase();
   const today = new Date();
   if (word('pasado mañana').test(t)) return dayKey(addDays(today, 2));
-  if (word('mañana').test(t)) return dayKey(addDays(today, 1));
+  if (word(MANANA).test(t)) return dayKey(addDays(today, 1));
   if (word('hoy|ahora|urgente').test(t)) return dayKey(today);
   for (let i = 0; i < 7; i++) {
     if (word(WEEKDAYS[i]).test(t)) {
@@ -116,57 +121,95 @@ function detectDue(text) {
       return dayKey(addDays(today, diff));
     }
   }
-  const m = t.match(/(?<!\d)(\d{1,2})[/-](\d{1,2})(?!\d)/);
+  const m = t.match(/(?<![\d.:])(\d{1,2})[/-](\d{1,2})(?![\d:])/);
   if (m) {
     const d = new Date(today.getFullYear(), Number(m[2]) - 1, Number(m[1]));
     if (d < addDays(today, -1)) d.setFullYear(d.getFullYear() + 1);
     return dayKey(d);
   }
+  const el = t.match(EL_DIA);
+  if (el && Number(el[1]) >= 1 && Number(el[1]) <= 31) {
+    const d = new Date(today.getFullYear(), today.getMonth(), Number(el[1]));
+    if (d < addDays(today, -1)) d.setMonth(d.getMonth() + 1);
+    return dayKey(d);
+  }
   return null;
 }
 
-// Hora del día escrita en el texto: "15:00", "15.30", "a las 15", "15h", "15 hrs", "3pm". Devuelve { hm, found } o null.
+// ---- Hora del día ----
+// Formas: "15:00", "a las 15.30", "3pm", "a las 3", "a las 8 y media", "a las 9 de la noche", "15h", "20 hrs",
+// y rangos "15:00 - 16:30" o "8:30 a 10:00". Una duración ("2h", "8 hrs") no es hora: solo 12h–23h valen sin "a las".
+const PRE = '(?:a\\s+las?\\s+)?';
+const SUF = '(?:\\s*(?:h|hrs?|horas?)(?![\\p{L}\\d]))?';
+const PARTE = '(?:\\s+de\\s+la\\s+(mañana|tarde|noche))?';
+const HM = '([01]?\\d|2[0-3])\\s*:\\s*([0-5]\\d)';
 const TIME_RES = [
-  /(?<![\d:])([01]?\d|2[0-3])\s*[:.]\s*([0-5]\d)\s*(am|pm)?(?!\d)/i,
-  /(?<![\d:])(1[0-2]|0?[1-9])\s*(am|pm)(?![\p{L}])/iu,
-  /\ba\s+las?\s+([01]?\d|2[0-3])(?![\d:.])(\s*(?:h|hrs?|horas?))?/i,
-  /(?<![\d:.])([01]?\d|2[0-3])\s*(?:h|hrs?)(?![\p{L}\d])/iu,
+  // rango con minutos: "15:00 - 16:30", "8:30 a 10:00", "de 15:00 a 16:00"
+  { re: new RegExp(`(?:de\\s+)?${PRE}(?<![\\d:.])${HM}${SUF}\\s*(?:-|–|a|al|hasta)\\s*${HM}${SUF}`, 'iu'), rango: true },
+  // "15:00", "a las 15:00 hrs", "a las 8.30" (con punto solo si dice "a las": "12.11" puede ser una fecha)
+  { re: new RegExp(`${PRE}(?<![\\d:.])${HM}\\s*(am|pm)?${SUF}${PARTE}(?![\\d])`, 'iu') },
+  { re: new RegExp(`a\\s+las?\\s+([01]?\\d|2[0-3])\\.([0-5]\\d)\\s*(am|pm)?${SUF}${PARTE}(?![\\d])`, 'iu') },
+  // "3pm", "a las 9 am"
+  { re: new RegExp(`${PRE}(?<![\\d:.])(1[0-2]|0?[1-9])()\\s*(am|pm)(?![\\p{L}])`, 'iu') },
+  // "a las 3", "a las 8 y media", "a la 1 y cuarto", "a las 9 de la noche"
+  { re: new RegExp(`a\\s+las?\\s+([01]?\\d|2[0-3])(?:\\s+y\\s+(media|cuarto|[0-5]\\d))?()${SUF}${PARTE}(?![\\d:.])`, 'iu'), suelta: true },
+  // "15h", "20 hrs": solo de 12 a 23 (antes de eso es una duración)
+  { re: new RegExp(`(?<![\\d:.])(1[2-9]|2[0-3])()()\\s*(?:h|hrs?)(?![\\p{L}\\d])`, 'iu') },
 ];
 
+const hm2 = (h, m) => validHm(`${h}:${String(m).padStart(2, '0')}`);
+
 export function detectTime(text) {
-  for (const re of TIME_RES) {
+  for (const { re, rango, suelta } of TIME_RES) {
     const m = text.match(re);
     if (!m) continue;
+    if (rango) {
+      const start = hm2(Number(m[1]), Number(m[2]));
+      const end = hm2(Number(m[3]), Number(m[4]));
+      if (start && end && end > start) return { hm: start, end, found: m[0] };
+      continue;
+    }
     let h = Number(m[1]);
-    let min = /^\d{2}$/.test(m[2] || '') ? Number(m[2]) : 0;
-    const ap = (m.find((x, i) => i > 1 && /^(am|pm)$/i.test(x || '')) || '').toLowerCase();
-    if (ap === 'pm' && h < 12) h += 12;
+    const min = m[2] === 'media' ? 30 : m[2] === 'cuarto' ? 15 : Number(m[2]) || 0;
+    const ap = (m[3] || '').toLowerCase();
+    const parte = (m[4] || '').toLowerCase();
+    if ((ap === 'pm' || parte === 'tarde' || parte === 'noche') && h < 12) h += 12;
     if (ap === 'am' && h === 12) h = 0;
-    const hm = validHm(`${h}:${String(min).padStart(2, '0')}`);
+    // "a las 3" sin más es en la tarde: nadie anota un evento a las 3 de la madrugada.
+    if (suelta && !ap && !parte && h >= 1 && h <= 6) h += 12;
+    const hm = hm2(h, min);
     if (hm) return { hm, found: m[0] };
   }
   return null;
 }
 
 function detectMinutes(text) {
-  const m = text.replace(TIME_RES[0], ' ').replace(TIME_RES[3], ' ').match(/(\d+)\s*(min|m\b|h|hr|hora)/i);
+  const m = text.match(/(\d+)\s*(min|m\b|h|hr|hora)/i);
   if (!m) return 25;
   const n = Number(m[1]);
   return /h/i.test(m[2]) ? n * 60 : n;
 }
 
-// Saca del título la hora y las palabras de día ya leídas ("dentista jueves 15:00" → "Dentista").
+const DAY_WORDS = `pasado mañana|${MANANA}|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo`;
+
+// Saca del título lo que ya quedó como fecha u hora ("dentista el jueves a las 15:00" → "Dentista").
 function cleanTitle(line, found, hasDate) {
-  let t = line.replace(found, ' ');
-  if (hasDate) t = t.replace(word('pasado mañana|mañana|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo'), ' ').replace(/(?<!\d)\d{1,2}[/-]\d{1,2}(?!\d)/, ' ');
-  t = t.replace(/\b(?:el|a la|a las|para el|este)\s*$/i, '').replace(/\s+/g, ' ').trim();
-  return (t || line).charAt(0).toUpperCase() + (t || line).slice(1);
+  let t = found ? line.replace(found, ' ') : line;
+  if (hasDate) {
+    t = t.replace(new RegExp(`(?:(?:el|este|para el|para)\\s+)?(?<![\\p{L}\\d])(?:${DAY_WORDS})(?![\\p{L}\\d])`, 'iu'), ' ')
+      .replace(/(?:\bel\s+)?(?<![\d.:])\d{1,2}[/-]\d{1,2}(?![\d:])/i, ' ')
+      .replace(EL_DIA, ' ');
+  }
+  t = t.replace(/\s+(?:el|a la|a las|para el|para|este)\s*$/i, '').replace(/^(?:a las?|el)\s+/i, '').replace(/\s+([,.;])/g, '$1').replace(/\s+/g, ' ').trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
 }
 
 export function localParse(text) {
   return text
-    .split(/\n|;|•|(?:^|\s)-\s/)
-    .map(s => s.trim().replace(/^[-*•)\s]+|^\d+[.)]\s+/, ''))
+    // Una idea por línea, por ";", "•" o coma (el dictado llega en una sola línea con comas). El guion separa
+    // solo si no está entre horas ("15:00 - 16:30" es un rango).
+    .split(/\n|;|•|,(?!\d)|(?:^|\s)-\s(?!\d)/)
+    .map(s => s.trim().replace(/^(?:[-*•)]\s*|\d+\s*[.)]-?\s+)/, ''))
     .filter(s => s.length > 2)
     .map(line => {
       const time = detectTime(line);
@@ -176,10 +219,10 @@ export function localParse(text) {
         const now = new Date();
         const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const date = due || dayKey(time.hm > nowHm ? now : addDays(now, 1));
-        return { kind: 'evento', title: cleanTitle(line, time.found, !!due), date, start: time.hm, end: defaultEnd(time.hm) };
+        return { kind: 'evento', title: cleanTitle(line, time.found, !!due) || 'Evento', date, start: time.hm, end: time.end || defaultEnd(time.hm) };
       }
       return {
-        title: line.charAt(0).toUpperCase() + line.slice(1),
+        title: (due && cleanTitle(line, '', true)) || line.charAt(0).toUpperCase() + line.slice(1),
         area: (AREA_WORDS.find(([, re]) => re.test(line)) || ['personal'])[0],
         minutes: detectMinutes(line),
         due,
