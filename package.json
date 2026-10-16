@@ -1,0 +1,15 @@
+{
+  "name": "turbo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/worker/*.test.mjs\" && playwright test",
+    "test:worker": "node --test \"tests/worker/*.test.mjs\"",
+    "test:ui": "playwright test",
+    "respaldo": "node tools/respaldo.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "miniflare": "^4.20260730.0"
+  }
+}
