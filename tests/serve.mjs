@@ -11,9 +11,11 @@ createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   const file = normalize(join(PUBLIC, path === '/' ? 'index.html' : path));
   if (!(file === PUBLIC || file.startsWith(PUBLIC + sep))) return res.writeHead(403).end();
+  let body;
   try {
-    res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream' }).end(await readFile(file));
+    body = await readFile(file); // primero leer: si no existe, aún no se escribieron las cabeceras
   } catch {
-    res.writeHead(404).end('no encontrado');
+    return res.writeHead(404).end('no encontrado');
   }
+  res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream' }).end(body);
 }).listen(8791, () => console.log('Turbo en http://localhost:8791'));
