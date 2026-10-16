@@ -241,6 +241,12 @@ Lo que dejó lista la Sesión 2 para el puente (Joaquín quiere Turbo y Google C
 - Regla anti-duplicados: al crear el evento en Google, guardar el id de Turbo en su descripción (por ejemplo `turbo:<id>`). Al leer Google, un evento con ese id no se muestra dos veces en Día ni avisa dos veces.
 - El feed `.ics` de Turbo (suscripción) ya muestra esos eventos en Google, pero solo para leer y con el retraso de Google. Si el puente funciona, evaluar apagarlo para no ver todo doble.
 
+Lo que quedó hecho en la Sesión 3 (entrevista del 16-10-2026):
+- Huecos de lunes a viernes de 08:30 a 20:00 (antes de las 08:30 hay clases y lo de después de las 20:00 es improvisado), desde 30 min. Sábado y domingo solo cuentan los huecos entre dos cosas anotadas.
+- Puente con Apps Script (`public/puente-google.txt`, guía en `docs/GOOGLE.md`): lo que tiene día y hora va a un calendario "Turbo" de Google. Se leen todos los calendarios visibles cada 5 min y Turbo sigue lo que se mueve o borra allá. El `.ics` viejo se saca de Google.
+- Las tareas sin hora no van a Google, para que el calendario no se llene de cosas que uno aprende a ignorar.
+- Atajo "Anotar en Turbo": `POST /api/shortcut/anotar`, guía en `docs/ATAJO-ANOTAR.md`.
+
 ### Sesión 4: Foco y Ahora de verdad
 
 `opusplan` · `high`, modo plan.
@@ -260,6 +266,8 @@ Rachas semanales, "saltar hoy" y reparar racha, XP por partir, bonus sorpresa y 
 `opusplan` · `high`, modo plan.
 
 Las pruebas se detectan en el calendario, la IA reparte sesiones hacia atrás y se crean como eventos en Google Calendar. Probar primero con datos de prueba.
+
+Acordado en la Sesión 3 (16-10-2026): las palabras que marcan una evaluación en Google son **Interrogación, Prueba, Certamen, Control, Examen y Entrega**. Las sesiones de estudio se crean con el puente que ya existe (`paraGoogle` en `src/puente.js`), en los huecos de `public/js/huecos.js`.
 
 ### Sesión 7: look con impeccable
 
