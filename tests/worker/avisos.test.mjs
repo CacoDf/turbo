@@ -110,6 +110,9 @@ test('fin del foco a la 01:00 sí avisa (lo partió él), con id propio por sesi
   assert.equal(f.id, `foco-${ahora}`);
   assert.equal(f.title, '🏁 ¡Tiempo!');
   assert.equal(hora(f.at), '01:00');
+  const m = plan({ focus: { start: ahora, endAt: a(MAR, '01:00'), plannedMin: 2, minimo: true } }, { ahora }).find(x => x.url === '/#/foco');
+  assert.equal(m.title, '💚 Listo');
+  assert.doesNotMatch(m.body, /seguir|15 min/i, 'el día mínimo no ofrece alargar');
 });
 
 test('vence mañana: un solo aviso a las 19:00 aunque sean varias; prueba mañana a las 20:00', () => {

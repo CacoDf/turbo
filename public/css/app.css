@@ -115,6 +115,7 @@ a.btn { text-decoration: none; }
 .btn.danger { color: var(--bad); }
 .btn.left { justify-content: flex-start; text-align: left; }
 .link { background: none; border: 0; color: var(--muted); padding: 10px 0; width: 100%; cursor: pointer; font-size: 15px; }
+.minimo .link { min-height: 44px; margin-top: 4px; }
 .link.inline { width: auto; padding: 0 0 0 8px; color: var(--accent); font-size: 14px; }
 .icon-btn {
   background: none; border: 0; min-width: 44px; min-height: 44px; font-size: 20px;

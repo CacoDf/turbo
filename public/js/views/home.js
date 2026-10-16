@@ -3,7 +3,7 @@ import { state, update } from '../store.js';
 import { suggestTask, nextStep, nowAndNext, blocksFor, AREAS, KINDS } from '../planner.js';
 import { levelInfo, todayWins, habitsDoneToday } from '../game.js';
 import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, DAY_SHORT } from '../util.js';
-import { bar, carSvg } from '../ui.js';
+import { bar, carSvg, toast } from '../ui.js';
 import { startFocus, breakdown, toggleStep, completeTask } from '../actions.js';
 import { rerender, go } from '../router.js';
 import { routineNow, startRoutine } from './routines.js';
@@ -11,12 +11,18 @@ import { needsCheckin, checkinCard } from './mood.js';
 import { weekFocusCard } from './review.js';
 
 let skipIds = [];
-let minimo = false;
 
 // Tras 3 días sin abrir (o desde el aviso del "día mínimo"): una sola cosa de 2 minutos, sin lista ni culpa.
+// Queda pendiente (aunque cierre la app sin tocar nada) hasta que toque "▶ 2 minutos" o "Hoy no".
+const MINIMO = 'turbo.minimo';
+const guardarMinimo = on => { try { on ? localStorage.setItem(MINIMO, '1') : localStorage.removeItem(MINIMO); } catch {} };
+let minimo = (() => { try { return localStorage.getItem(MINIMO) === '1'; } catch { return false; } })();
+let calma = false; // tras "Hoy no": sin preguntas extra en esta visita
+
 export function activarMinimo() {
   minimo = true;
   skipIds = [];
+  guardarMinimo(true);
 }
 
 function minimoCard() {
@@ -24,7 +30,7 @@ function minimoCard() {
   return `<section class="card now minimo">
     <div class="label">VOLVISTE 👋</div>
     <h2 class="task-title">Día mínimo: 2 minutos</h2>
-    <p class="muted">Una sola cosa chica y listo.${t ? ` Parte con <b>${esc(t.title)}</b>.` : ''}</p>
+    <p class="muted">${t ? `Solo 2 minutos de <b>${esc(t.title)}</b>. Después puedes parar.` : 'Solo 2 minutos de lo que quieras. Después puedes parar.'}</p>
     <button class="btn huge" data-act="homeMinimo" data-id="${t ? esc(t.id) : ''}">▶ 2 minutos</button>
     <button class="link" data-act="homeMinimoNo">Hoy no</button>
   </section>`;
@@ -155,7 +161,7 @@ export function render() {
   </header>
   ${eventPill()}
   ${onboarding()}
-  ${state.focus ? '' : minimo ? minimoCard() : extraCard()}
+  ${state.focus ? '' : minimo ? minimoCard() : calma ? '' : extraCard()}
   ${focusCard()}
   ${state.focus || minimo ? '' : cal.html}
   ${state.focus || minimo || cal.running ? '' : taskCard()}
@@ -184,10 +190,14 @@ export const actions = {
   homeFree: () => startFocus(null, 5),
   homeMinimo: el => {
     minimo = false;
-    startFocus(el.dataset.id || null, 2);
+    guardarMinimo(false);
+    startFocus(el.dataset.id || null, 2, null, { minimo: true });
   },
   homeMinimoNo: () => {
     minimo = false;
+    calma = true;
+    guardarMinimo(false);
+    toast('Dale. Aquí queda para cuando quieras.');
     rerender();
   },
   homeCalFocus: el => startFocus(null, Number(el.dataset.min), el.dataset.title),

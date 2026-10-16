@@ -35,10 +35,10 @@ export function render() {
   return `<div class="focus-screen">
     <div class="muted center">${t ? esc(t.title) : f.label ? esc(f.label) : 'Sesión libre'}</div>
     <div class="center">${ring(1 - pct, { size: 270, inner: `<div class="clock" id="focusClock">${fmtClock(f.endAt - Date.now())}</div><div class="muted small">de ${fmtDuration(f.plannedMin)}</div>` })}</div>
-    <div class="bubble" id="focusBubble">${pick(COMPANION)}</div>
+    <div class="bubble" id="focusBubble">${f.minimo ? 'Solo esto. Cuando suene, listo.' : pick(COMPANION)}</div>
     ${step ? `<button class="step" data-act="focusStep" data-task="${t.id}" data-step="${step.id}"><span class="check"></span><span><b>Ahora:</b> ${esc(step.text)}</span></button>` : ''}
     <div class="row">
-      <button class="btn ghost" data-act="focusPlus" data-min="5">+5 min</button>
+      ${f.minimo ? '' : '<button class="btn ghost" data-act="focusPlus" data-min="5">+5 min</button>'}
       <button class="btn ghost" data-act="focusStop">Terminar sesión</button>
     </div>
   </div>`;
@@ -48,6 +48,13 @@ function finishSheet() {
   const f = state.focus;
   const t = f && findTask(f.taskId);
   const early = f && f.endAt > Date.now();
+  // Día mínimo: no se pide nada más. Seguir es opcional y chico.
+  if (f?.minimo) {
+    return openSheet(`<h2>💚 Listo</h2>
+      <p>Eso era todo por hoy.</p>
+      <button class="btn" data-act="focusFinish" data-how="later">Listo</button>
+      <button class="btn ghost" data-act="focusFinish" data-how="more5">Seguir 5 min</button>`);
+  }
   openSheet(`<h2>${early ? '⏸️ Cerrar sesión' : '🏁 ¡Tiempo!'}</h2>
     <p>${early ? 'Lo que alcanzaste a hacer cuenta. ¿Cómo sigue?' : 'Llegaste a la meta. ¿Cómo sigue?'}</p>
     ${t ? `<button class="btn" data-act="focusFinish" data-how="done">✓ Terminé la tarea</button>` : ''}
@@ -79,7 +86,7 @@ export function mount() {
     if (Date.now() - lastBubble > 150000) {
       lastBubble = Date.now();
       const b = document.getElementById('focusBubble');
-      if (b) b.textContent = pick(COMPANION);
+      if (b && !cur.minimo) b.textContent = pick(COMPANION);
     }
     if (left <= 0 && !ended) {
       ended = true;
@@ -110,8 +117,8 @@ export const actions = {
     const how = el.dataset.how;
     const f = state.focus;
     closeSheet();
-    if (how === 'more15') {
-      extendFocus(15);
+    if (how === 'more15' || how === 'more5') {
+      extendFocus(how === 'more5' ? 5 : 15);
       ended = false;
       rerender();
       return;

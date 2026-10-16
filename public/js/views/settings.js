@@ -29,7 +29,7 @@ export function render() {
       <label class="muted small">Buenos días a las <input class="input" type="time" value="${s.morningAt}" data-change="setField" data-f="morningAt"></label>
       <label class="muted small">Revisar hábitos a las <input class="input" type="time" value="${s.habitsAt}" data-change="setField" data-f="habitsAt"></label>
       <label class="muted small">Revisión semanal (domingos) a las <input class="input" type="time" value="${s.reviewAt}" data-change="setField" data-f="reviewAt"></label>
-      <div class="muted small">Silencio de noche</div>
+      <div class="muted small">Silencio de noche: no te avisa entre estas horas</div>
       <div class="row"><label class="grow muted small">Desde <input class="input" type="time" value="${s.sleepAt}" data-change="setField" data-f="sleepAt"></label><label class="grow muted small">Hasta <input class="input" type="time" value="${s.wakeAt}" data-change="setField" data-f="wakeAt"></label></div>
     </section>
 

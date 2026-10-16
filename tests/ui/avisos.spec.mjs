@@ -14,16 +14,31 @@ test('desde el aviso del día mínimo: Ahora ofrece 2 minutos y el botón parte 
   await page.getByRole('button', { name: '▶ 2 minutos' }).click();
   await expect(page).toHaveURL(/#\/foco/);
   const s = await app.guardado();
-  expect(s.focus.plannedMin).toBe(2);
-  expect(s.focus.taskId).toBe('t1');
+  expect(s.focus).toMatchObject({ plannedMin: 2, taskId: 't1', minimo: true });
+  await expect(page.getByRole('button', { name: '+5 min' })).toHaveCount(0); // no empuja a alargar
+  // Al terminar los 2 minutos: un "Listo" y, opcional, seguir 5. Nada de "15 min más".
+  await page.clock.runFor(2 * 60000 + 2000);
+  await expect(page.getByRole('heading', { name: '💚 Listo' })).toBeVisible();
+  await expect(page.locator('#sheet .sheet button')).toHaveText(['Listo', 'Seguir 5 min']);
+  await page.waitForFunction(() => document.querySelector('#sheet .sheet').getBoundingClientRect().bottom <= innerHeight + 1); // terminó de subir
+  await page.screenshot({ path: 'tests/capturas/dia-minimo-fin.png' });
+  await page.getByRole('button', { name: 'Listo', exact: true }).click();
+  await expect(page).toHaveURL(/#\/ahora/);
+  expect((await app.guardado()).focus).toBeNull();
 });
 
-test('tras 3 días sin abrir aparece el día mínimo; "Hoy no" vuelve a lo normal', async ({ page, app }) => {
+test('tras 3 días sin abrir aparece el día mínimo, sigue ahí si cierra sin tocar, y "Hoy no" calma la pantalla', async ({ page, app }) => {
   await page.addInitScript(t => { if (!sessionStorage.getItem('visto')) { sessionStorage.setItem('visto', '1'); localStorage.setItem('turbo.visto', String(t)); } }, HOY.getTime() - 4 * DIA);
   await app.abrir('ahora');
   await expect(page.getByRole('heading', { name: 'Día mínimo: 2 minutos' })).toBeVisible();
-  await page.getByRole('button', { name: 'Hoy no' }).click();
+  await page.reload(); // abrió, miró y cerró: al volver sigue la misma oferta
+  await expect(page.getByRole('heading', { name: 'Día mínimo: 2 minutos' })).toBeVisible();
+  const hoyNo = page.getByRole('button', { name: 'Hoy no' });
+  expect((await hoyNo.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await hoyNo.click();
+  await expect(page.getByText('Dale. Aquí queda para cuando quieras.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Día mínimo: 2 minutos' })).toHaveCount(0);
+  await expect(page.getByText('¿Cómo está tu energía?')).toHaveCount(0); // sin preguntas extra al que dijo "hoy no"
   await expect(page.getByRole('button', { name: /Solo 5 minutos/ })).toBeVisible();
   expect(Number(await page.evaluate(() => localStorage.getItem('turbo.visto')))).toBeGreaterThanOrEqual(HOY.getTime());
 });

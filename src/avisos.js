@@ -131,7 +131,8 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
   // Fin del foco: lo partió él, así que no tiene silencio.
   const f = state.focus;
   if (f?.endAt) {
-    serie(`foco-${f.start || f.endAt}`, f.endAt, [{ title: '🏁 ¡Tiempo!', body: frase(F.foco, hoy) }], { url: '/#/foco', sinSilencio: true });
+    const body = f.minimo ? 'Listo 💚 Eso era todo por hoy.' : frase(F.foco, hoy);
+    serie(`foco-${f.start || f.endAt}`, f.endAt, [{ title: f.minimo ? '💚 Listo' : '🏁 ¡Tiempo!', body }], { url: '/#/foco', sinSilencio: true });
   }
 
   const sueno = hmToMin(s.sleepAt);

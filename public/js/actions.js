@@ -90,9 +90,9 @@ export function deleteTask(id) {
   });
 }
 
-export function startFocus(taskId, minutes, label = null) {
+export function startFocus(taskId, minutes, label = null, extra = {}) {
   update(s => {
-    s.focus = { taskId, label, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0 };
+    s.focus = { taskId, label, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0, ...extra };
     if (taskId) s.currentTaskId = taskId;
   });
   reward(XP.focusStart, 'focus', 'Arrancaste 🚦');
