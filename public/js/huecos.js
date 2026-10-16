@@ -1,6 +1,7 @@
-// Detector de huecos: el tiempo libre entre eventos, dentro de la ventana del día (08:00–20:00 por defecto).
+// Detector de huecos: el tiempo libre entre eventos, dentro de la ventana del día (08:30–20:00 por defecto).
+// Sábado y domingo no hay ventana: solo cuenta el tiempo entre dos cosas anotadas.
 // Es puro (sin DOM ni fechas): lo usan Día y Ahora en la app, y el cron del servidor para avisar.
-export const HUECO = { desde: '08:00', hasta: '20:00', min: 30, largo: 60 };
+export const HUECO = { desde: '08:30', hasta: '20:00', min: 30, largo: 60 };
 
 const aMin = hm => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm || ''));
@@ -8,17 +9,19 @@ const aMin = hm => {
 };
 
 // Opciones del usuario (state.settings), con los valores de fábrica si faltan o vienen mal.
-export function opcionesHueco(s = {}) {
+// dow (0 = domingo … 6 = sábado): el fin de semana solo cuentan los huecos entre cosas.
+export function opcionesHueco(s = {}, dow = 1) {
   const desde = aMin(s.huecoDesde) ?? aMin(HUECO.desde);
   const hasta = aMin(s.huecoHasta) ?? aMin(HUECO.hasta);
   const min = Number(s.huecoMin) > 0 ? Number(s.huecoMin) : HUECO.min;
-  return desde < hasta ? { desde, hasta, min } : { desde: aMin(HUECO.desde), hasta: aMin(HUECO.hasta), min };
+  const soloEntre = dow === 0 || dow === 6;
+  return desde < hasta ? { desde, hasta, min, soloEntre } : { desde: aMin(HUECO.desde), hasta: aMin(HUECO.hasta), min, soloEntre };
 }
 
 // bloques: [{ini, fin}] en minutos del día, o [{start, end}] en 'HH:MM'. Los de todo el día no ocupan tiempo.
 // Devuelve [{ini, fin, min, tipo}] con tipo 'medio' (hasta 60 min) o 'largo' (más de 60).
 export function huecos(bloques = [], opciones = {}) {
-  const { desde, hasta, min } = { ...opcionesHueco(), ...opciones };
+  const { desde, hasta, min, soloEntre } = { ...opcionesHueco(), ...opciones };
   const ocupado = [];
   for (const b of bloques) {
     if (!b || b.allDay) continue;
@@ -33,12 +36,12 @@ export function huecos(bloques = [], opciones = {}) {
   ocupado.sort((x, y) => x[0] - y[0]);
 
   const libres = [];
-  let cursor = desde;
+  let cursor = soloEntre ? null : desde; // sin ventana, el primer hueco parte cuando termina la primera cosa
   for (const [a, z] of ocupado) {
-    if (a > cursor) libres.push([cursor, a]);
-    cursor = Math.max(cursor, z); // eventos que se topan o van seguidos (clases seguidas) cuentan como uno
+    if (cursor != null && a > cursor) libres.push([cursor, a]);
+    cursor = Math.max(cursor ?? z, z); // eventos que se topan o van seguidos (clases seguidas) cuentan como uno
   }
-  if (hasta > cursor) libres.push([cursor, hasta]);
+  if (!soloEntre && hasta > cursor) libres.push([cursor, hasta]);
 
   return libres
     .map(([ini, fin]) => ({ ini, fin, min: fin - ini, tipo: fin - ini > HUECO.largo ? 'largo' : 'medio' }))

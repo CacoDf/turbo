@@ -184,3 +184,58 @@ test('un evento anotado en Turbo (una vez, con fecha) avisa 15 min antes igual q
   assert.equal(hora(d.at), '14:45');
   assert.equal(d.title, '📌 Dentista en 15 min');
 });
+
+// ---- Huecos libres (Sesión 3) ----
+const huecosDe = r => r.filter(x => x.serie.startsWith('hueco-'));
+
+test('hueco al salir de clase: avisa al salir y a los 10 min, con una tarea que cabe; tras un evento de Google, 5 min antes', () => {
+  const r = plan({
+    schedule: [
+      { id: 'c1', title: 'Cálculo', kind: 'clase', days: [2], start: '08:30', end: '10:00' },
+      { id: 'c2', title: 'Finanzas', kind: 'clase', days: [2], start: '10:00', end: '11:30' },
+    ],
+    tasks: [
+      { id: 'larga', title: 'Informe entero', minutes: 120, due: '2026-10-20' },
+      { id: 'cabe', title: 'Leer apunte', minutes: 25, due: '2026-10-21' },
+    ],
+  }, { eventos: [{ title: 'Almuerzo', date: '2026-10-20', start: '13:00', end: '14:00' }] });
+  const h = huecosDe(r).filter(x => x.serie === 'hueco-2026-10-20-11:30');
+  assert.deepEqual(h.map(x => hora(x.at)), ['11:30', '11:40'], 'en clase no suena: el primero llega al salir');
+  assert.equal(h[0].title, '🕳️ Hueco de 1 h 30 min');
+  assert.match(h[0].body, /hasta las 13:00/);
+  assert.match(h[0].body, /Leer apunte \(25 min\)/, 'propone la que cabe, no la de 2 horas');
+  assert.ok(h.every(x => x.url === '/#/ahora'));
+  const tarde = huecosDe(r).filter(x => x.serie === 'hueco-2026-10-20-14:00');
+  assert.deepEqual(tarde.map(x => hora(x.at)), ['13:55', '14:00', '14:10'], 'tras el almuerzo: 5 min antes, al empezar y a los 10 min');
+  assert.equal(new Set(tarde.map(x => x.body)).size, 3, 'frases distintas');
+  assert.ok(!huecosDe(r).some(x => x.serie.includes('10:00')), 'entre clases seguidas no hay hueco');
+});
+
+test('sin tareas que quepan, el aviso del hueco igual llega con otra frase', () => {
+  const r = plan({ schedule: [{ id: 'c', title: 'Clase', kind: 'clase', days: [2], start: '08:30', end: '12:00' }, { id: 'd', title: 'Taller', kind: 'otro', days: [2], start: '12:40', end: '20:00' }] });
+  const [primero] = huecosDe(r);
+  assert.equal(hora(primero.at), '12:00');
+  assert.match(primero.body, /40 min libres hasta las 12:40/);
+});
+
+test('el día sin nada anotado no avisa huecos (de eso se encargan los buenos días); el fin de semana vacío tampoco', () => {
+  assert.deepEqual(huecosDe(plan({ schedule: [] }, { ahora: a(MAR, '07:00') })), []);
+  const SAB = MAR + 4;
+  assert.deepEqual(huecosDe(plan({ schedule: [] }, { ahora: a(SAB, '07:00') })), []);
+});
+
+test('fin de semana: solo avisa el hueco entre dos cosas anotadas', () => {
+  const SAB = MAR + 4;
+  const r = plan({ schedule: [] }, { ahora: a(SAB, '07:00'), eventos: [
+    { title: 'Cumple', date: '2026-10-24', start: '13:00', end: '15:00' },
+    { title: 'Cine', date: '2026-10-24', start: '17:00', end: '19:00' },
+  ] });
+  assert.deepEqual(huecosDe(r).map(x => x.serie), ['hueco-2026-10-24-15:00', 'hueco-2026-10-24-15:00', 'hueco-2026-10-24-15:00']);
+});
+
+test('como mucho 3 avisos por hueco y ninguno de noche', () => {
+  const r = plan({ schedule: [{ id: 'p', title: 'Pega', kind: 'pega', days: [2], start: '08:30', end: '12:00' }, { id: 'd', title: 'Taller', kind: 'otro', days: [2], start: '12:30', end: '20:00' }] });
+  const h = huecosDe(r);
+  assert.deepEqual(h.map(x => hora(x.at)), ['11:55', '12:00', '12:10']);
+  assert.ok(h.length <= MAX_POR_SERIE);
+});

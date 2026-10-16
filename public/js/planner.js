@@ -34,12 +34,12 @@ export function blocksFor(date) {
 }
 
 // Tiempo libre de un día (ver huecos.js), con la ventana y el mínimo de Ajustes.
-export const huecosDel = date => huecos(blocksFor(date), opcionesHueco(state.settings));
+export const huecosDel = date => huecos(blocksFor(date), opcionesHueco(state.settings, date.getDay()));
 
 // El hueco en que estás o el próximo de hoy. Si ya empezó, cuenta desde ahora (y debe seguir alcanzando).
 export function proximoHueco(now = new Date()) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const { min } = opcionesHueco(state.settings);
+  const { min } = opcionesHueco(state.settings, now.getDay());
   for (const h of huecosDel(now)) {
     const ini = Math.max(h.ini, nowMin);
     if (h.fin - ini >= min) return { ...h, ini, min: h.fin - ini, ahora: h.ini <= nowMin };

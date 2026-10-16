@@ -3,7 +3,7 @@
 import { Miniflare } from 'miniflare';
 import { fileURLToPath } from 'node:url';
 
-const SRC = fileURLToPath(new URL('../../src', import.meta.url));
+const RAIZ = fileURLToPath(new URL('../..', import.meta.url));
 
 export const SECRETO = 'secreto';
 
@@ -11,9 +11,10 @@ export async function crearMundo(extra = {}) {
   const mundo = { pushes: [], geminiReply: null, externo: new Map(), fetchesExternos: [] };
   mundo.mf = new Miniflare({
     modules: true,
-    scriptPath: `${SRC}/worker.js`,
-    modulesRoot: SRC,
-    modulesRules: [{ type: 'ESModule', include: ['**/*.js'] }], // como wrangler: los .js de src/ son módulos ES
+    scriptPath: `${RAIZ}/src/worker.js`,
+    modulesRoot: RAIZ,
+    // Como wrangler: los .js de src/ son módulos ES, y también lo que comparten con la app (huecos.js).
+    modulesRules: [{ type: 'ESModule', include: ['src/**/*.js', 'public/js/huecos.js'] }],
     compatibilityDate: '2025-09-01',
     d1Databases: { DB: 'test-db' },
     bindings: { APP_SECRET: SECRETO, ...extra },

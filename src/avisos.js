@@ -1,6 +1,7 @@
 // Avisos que calcula el servidor (cron), desde el respaldo del estado y el calendario de Google.
 // Es una función pura (sin base de datos ni red) para poder probarla con cualquier "ahora".
 import { enChile, instante, keyOf, fromDayNum, hmToMin } from './tiempo.js';
+import { huecos, opcionesHueco } from '../public/js/huecos.js';
 
 export const MAX_POR_SERIE = 3;
 export const HORIZONTE = 36 * 3600000;
@@ -34,8 +35,24 @@ const F = {
   minimo2: ['Sigue en pie: 2 minutos cuando puedas.', 'Una cosa chica, 2 minutos. Nada más.', '¿Ahora? Son solo 2 minutos.'],
   habitos: [l => `Te faltan: ${l}`, l => `Quedan: ${l}. Uno basta.`, l => `Para cerrar el día: ${l}`],
   habitos2: [l => `Un recordatorio más: ${l}`, l => `Todavía hay tiempo: ${l}`, l => `Si te queda energía: ${l}`],
+  // Hueco libre: 5 min antes, al empezar y a los 10 min (máximo 3). Saliendo de clase: al salir y a los 10 min.
+  hueco: [
+    (d, h, t) => `Tienes ${d} libres hasta las ${h}. ¿Partimos con ${t}?`,
+    (d, h, t) => `${d} libres hasta las ${h}. Cabe ${t}.`,
+    (d, h, t) => `Se viene un hueco de ${d}. Buena para ${t}.`,
+  ],
+  huecoSin: [
+    (d, h) => `Tienes ${d} libres hasta las ${h}. Anota algo y Turbo te propone.`,
+    (d, h) => `${d} libres hasta las ${h}. ¿Qué hacemos con ellos?`,
+    (d, h) => `Se viene un hueco de ${d}, hasta las ${h}.`,
+  ],
+  hueco2: ['Ya estás libre. Parte con lo primero de Ahora.', 'Empezó tu hueco. Un toque y partes.', 'Tiempo libre ahora: ¿5 minutos de algo?'],
+  hueco3: ['Solo 5 minutos. Después decides.', 'Aunque sea 5 minutos: después puedes parar.', '5 minutos y listo. Lo que sea.'],
   foco: ['Listo. Puedes parar, o seguir 15 min.', 'Tiempo. Bien hecho: para o sigue un poco más.', 'Terminó tu foco. ¿Paras o sigues 15 min?'],
 };
+
+const hm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const dur = m => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`);
 
 const corto = (t, n = 40) => (String(t).length > n ? `${String(t).slice(0, n - 1)}…` : String(t));
 
@@ -53,6 +70,14 @@ function bloquesDel(state, eventos, key, dow) {
 // Tareas pendientes para un día: vencen ese día o antes, o se marcaron para hoy. Es el número del ícono.
 export function pendientesDel(state, key) {
   return (state.tasks || []).filter(t => t && !t.done && (t.due ? t.due <= key : !!t.today));
+}
+
+// La tarea que cabe en un hueco: primero lo de hoy, después lo que vence antes.
+function tareaQueCabe(state, key, min) {
+  const deHoy = new Set(pendientesDel(state, key).map(t => t.id));
+  const t = (state.tasks || []).filter(x => x && !x.done && (Number(x.minutes) || 25) <= min)
+    .sort((a, b) => deHoy.has(b.id) - deHoy.has(a.id) || (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt || 0) - (b.createdAt || 0))[0];
+  return t ? `${corto(t.title)} (${Number(t.minutes) || 25} min)` : '';
 }
 
 function primeraTarea(state, key) {
@@ -87,6 +112,23 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
         title: `${EMOJI[b.kind] || '📌'} ${corto(b.title, 60)} ${antes ? `en ${antes} min` : 'ahora'}`,
         body: `Parte a las ${b.start}. ${frase(F.bloque, dia)}`,
       }], { url: '/#/ahora', limite: inicio });
+    }
+
+    // Huecos libres entre cosas (no el de la mañana antes de todo): el día vacío ya lo cubren los buenos días.
+    const opt = opcionesHueco(s, dow);
+    const finales = new Set(bloques.map(b => hmToMin(b.end)));
+    for (const h of huecos(bloques, opt)) {
+      if (h.ini === opt.desde && !finales.has(h.ini)) continue;
+      const t = tareaQueCabe(state, key, h.min);
+      const d = dur(h.min);
+      const primero = { title: `🕳️ Hueco de ${d}`, body: t ? frase(F.hueco, dia)(d, hm(h.fin), t) : frase(F.huecoSin, dia)(d, hm(h.fin)) };
+      const ultimo = { title: '🕳️ Solo 5 minutos', body: frase(F.hueco3, dia, 3) };
+      // Saliendo de clase no se avisa antes (es silencio): el primero llega al terminar la clase y el último 10 min después.
+      const trasClase = bloques.some(b => b.kind === 'clase' && hmToMin(b.start) < h.ini - 5 && hmToMin(b.end) >= h.ini);
+      serie(`hueco-${key}-${hm(h.ini)}`, at(hm(h.ini)) - (trasClase ? 0 : 5 * MIN), trasClase
+        ? [primero, { ...ultimo, tras: 10 }]
+        : [primero, { title: '🕳️ Estás libre', body: frase(F.hueco2, dia, 2), tras: 5 }, { ...ultimo, tras: 15 }],
+      { url: '/#/ahora', limite: at(hm(h.fin)) - 10 * MIN });
     }
 
     // Buenos días o día mínimo: la misma serie (mismo id), así abrir la app después de uno no dispara el otro.
@@ -153,16 +195,18 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
 
   const porSerie = {};
   const ultimo = {}; // hora final del paso anterior de cada serie
+  const previsto = {}; // hora que tenía planeada ese paso anterior
   const out = [];
   for (const a of crudos.sort((x, y) => x.paso - y.paso)) {
     // Si el paso anterior se corrió (p. ej. por una clase), este conserva su distancia: nunca dos juntos.
-    let at = ultimo[a.serie] != null ? Math.max(a.at, ultimo[a.serie] + (a.at - a.inicio)) : a.at;
+    let at = ultimo[a.serie] != null ? Math.max(a.at, ultimo[a.serie] + (a.at - previsto[a.serie])) : a.at;
     if (!a.sinSilencio) {
       // En clase: se corre al final (varias clases seguidas = varias vueltas). Si ya no sirve, se descarta.
       for (let c = enClase(at), i = 0; c && i < 6; c = enClase(at), i++) at = c.fin;
       if (a.limite != null && at > a.limite) continue;
       if (deNoche(at)) continue;
     }
+    previsto[a.serie] = a.at;
     ultimo[a.serie] = at; // antes de filtrar por ventana: un paso ya pasado igual corre a los siguientes
     if (at < ahora - 5 * MIN || at > ahora + HORIZONTE) continue;
     porSerie[a.serie] = (porSerie[a.serie] || 0) + 1;
