@@ -167,3 +167,26 @@ test('un evento lejano (más de 14 días) abre Día en su fecha y, al salir y vo
   await page.locator('#nav a', { hasText: 'Día' }).click();
   await expect(page.getByText(/Hoy Martes 20 oct/)).toBeVisible();
 });
+
+test('un evento de Turbo que se topa con uno de Google se ven los dos, lado a lado', async ({ page, app }) => {
+  await app.abrir('dia');
+  await page.evaluate(k => {
+    const s = JSON.parse(localStorage.getItem(k));
+    s.extEvents = [{ title: 'Reunión grupo', date: '2026-10-22', allDay: false, start: '14:30', end: '16:00' }];
+    s.schedule = [...(s.schedule || []), { id: 'dent', title: 'Dentista', kind: 'otro', days: [], date: '2026-10-22', start: '15:00', end: '16:00', src: 'turbo' }];
+    localStorage.setItem(k, JSON.stringify(s));
+  }, KEY);
+  await page.reload();
+  await page.getByRole('button', { name: 'Día siguiente' }).click();
+  await page.getByRole('button', { name: 'Día siguiente' }).click();
+  const dentista = page.locator('.block', { hasText: 'Dentista' });
+  const reunion = page.locator('.block', { hasText: 'Reunión grupo' });
+  await dentista.scrollIntoViewIfNeeded();
+  await expect(dentista).toBeVisible();
+  await expect(reunion).toBeVisible();
+  const a = await dentista.boundingBox();
+  const b = await reunion.boundingBox();
+  const seTapan = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  expect(seTapan, 'ninguno tapa al otro').toBe(false);
+  await page.screenshot({ path: 'tests/capturas/dia-topes.png' });
+});

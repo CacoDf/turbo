@@ -29,16 +29,41 @@ const START = 7 * 60;
 const END = 24 * 60;
 const PX = 0.9; // píxeles por minuto
 
+// Bloques que se topan van lado a lado (como en Google Calendar), no uno encima del otro.
+// Cada grupo de bloques que se pisan reparte el ancho en tantas columnas como necesite.
+function lanes(blocks) {
+  const out = [];
+  let group = [];
+  let groupEnd = -1;
+  let colEnds = [];
+  const close = () => { group.forEach(x => (x.cols = colEnds.length)); group = []; colEnds = []; };
+  for (const b of blocks) {
+    const ini = hmToMin(b.start);
+    const fin = Math.max(ini + 1, hmToMin(b.end), ini + 22 / PX); // lo que mide en pantalla (mínimo 22 px)
+    if (ini >= groupEnd) close();
+    let col = colEnds.findIndex(e => e <= ini);
+    if (col < 0) col = colEnds.push(0) - 1;
+    colEnds[col] = fin;
+    groupEnd = Math.max(groupEnd, fin);
+    const x = { b, col, cols: 1 };
+    group.push(x);
+    out.push(x);
+  }
+  close();
+  return out;
+}
+
 function timeline(date) {
   const blocks = blocksFor(date);
   const isToday = offset === 0;
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const hours = [];
   for (let m = START; m <= END; m += 60) hours.push(`<div class="hour" style="top:${(m - START) * PX}px">${String(m / 60 % 24).padStart(2, '0')}:00</div>`);
-  const items = blocks.map(b => {
+  const items = lanes(blocks).map(({ b, col, cols }) => {
     const top = (Math.max(START, hmToMin(b.start)) - START) * PX;
     const h = Math.max(22, (hmToMin(b.end) - hmToMin(b.start)) * PX);
-    return `<div class="block k-${b.kind}" style="top:${top}px;height:${h}px"><b>${KINDS[b.kind]?.emoji || ''} ${esc(b.title)}</b><span>${b.start}–${b.end}</span></div>`;
+    const pos = cols > 1 ? `;left:calc(8px + (100% - 8px) * ${col} / ${cols});right:auto;width:calc((100% - 8px) / ${cols} - 4px)` : '';
+    return `<div class="block k-${b.kind}" style="top:${top}px;height:${h}px${pos}"><b>${KINDS[b.kind]?.emoji || ''} ${esc(b.title)}</b><span>${b.start}–${b.end}</span></div>`;
   }).join('');
   const nowLine = isToday && nowMin >= START ? `<div class="now-line" style="top:${(nowMin - START) * PX}px"><span>ahora</span></div>` : '';
   return `<div class="timeline" style="height:${(END - START) * PX + 10}px">${hours.join('')}${items}${nowLine}</div>`;
