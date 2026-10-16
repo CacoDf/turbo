@@ -8,8 +8,6 @@ import { startFocus, breakdown, toggleStep, completeTask } from '../actions.js';
 import { rerender, go } from '../router.js';
 import { routineNow, startRoutine } from './routines.js';
 import { needsCheckin, checkinCard } from './mood.js';
-import { unseenCheer } from './partner.js';
-import { needsInterview } from './assistant.js';
 import { weekFocusCard } from './review.js';
 
 let skipIds = [];
@@ -34,28 +32,13 @@ function calendarNow() {
   };
 }
 
-// Como mucho UNA tarjeta extra, para no llenar la pantalla: ánimo recibido > rutina > check-in.
+// Como mucho UNA tarjeta extra, para no llenar la pantalla: rutina > check-in de energía.
 function extraCard() {
-  const cheer = unseenCheer();
-  if (cheer) {
-    return `<section class="card cheer">
-      <div class="label">💌 TE MANDARON ÁNIMO</div>
-      <p><b>${esc(cheer.from || 'Alguien')}:</b> ${esc(cheer.msg)}</p>
-      <button class="btn ghost small" data-act="homeCheerSeen">❤️ Gracias</button>
-    </section>`;
-  }
   const r = routineNow();
   if (r) {
     return `<section class="card compact row between">
       <span>${r.emoji} Es hora de tu rutina de <b>${esc(r.name)}</b></span>
       <button class="btn small" data-act="homeRoutine" data-id="${r.id}">▶ Empezar</button>
-    </section>`;
-  }
-  if (needsInterview()) {
-    return `<section class="card interview" data-act="go" data-to="secretaria">
-      <div class="label">☀️ PLANIFICA TU DÍA (1 MIN)</div>
-      <p>Tu secretaria te pregunta qué tienes hoy. Respondes hablando y ella anota todo.</p>
-      <button class="btn small">🤖 Empezar</button>
     </section>`;
   }
   if (needsCheckin()) return checkinCard();
@@ -81,7 +64,7 @@ function onboarding() {
   return `<section class="card intro">
     <h2>Bienvenido a Turbo 🏎️</h2>
     <ol>
-      <li><b>Cuéntale a tu secretaria 🤖</b> lo que tengas, hablando o escribiendo. Ella lo anota.</li>
+      <li><b>Anota en Capturar 🧠</b> lo que tengas, hablando o escribiendo. Turbo lo ordena.</li>
       <li><b>Turbo elige una sola cosa</b> y la divide en pasos chicos.</li>
       <li><b>Toca "Solo 5 minutos".</b> Solo tienes que arrancar.</li>
     </ol>
@@ -107,9 +90,8 @@ function taskCard() {
     return `<section class="card now">
       <div class="label">AHORA</div>
       <h2 class="task-title">No tienes tareas anotadas</h2>
-      <p class="muted">Cuéntale a tu secretaria qué tienes pendiente (o qué quieres lograr) y Turbo elige por dónde partir. O usa 5 minutos para cualquier cosa.</p>
-      <button class="btn huge" data-act="go" data-to="secretaria">🤖 Hablar con la secretaria</button>
-      <button class="btn ghost" data-act="go" data-to="metas">🎯 Crear una meta</button>
+      <p class="muted">Anota lo que tengas pendiente y Turbo elige por dónde partir. O usa 5 minutos para cualquier cosa.</p>
+      <button class="btn huge" data-act="go" data-to="capturar">🧠 Anotar</button>
       <button class="btn ghost" data-act="homeFree">▶ Solo 5 minutos (sin tarea)</button>
     </section>`;
   }
@@ -164,11 +146,7 @@ export function render() {
     ${bar(hb.total ? hb.done / hb.total : 0, 'var(--good)')}
     <div class="row between muted small"><span>Logros de hoy: ${wins}</span><span>Ver hábitos →</span></div>
   </section>
-  ${weekFocusCard()}
-  <div class="row quick">
-    <button class="btn secondary" data-act="go" data-to="secretaria">🤖 Anotar algo</button>
-    <button class="btn shield" data-act="go" data-to="escudo" aria-label="Escudo">🛡️</button>
-  </div>`;
+  ${weekFocusCard()}`;
 }
 
 export function mount() {
@@ -187,7 +165,6 @@ export const actions = {
   homeStart: el => startFocus(el.dataset.id, Number(el.dataset.min)),
   homeFree: () => startFocus(null, 5),
   homeCalFocus: el => startFocus(null, Number(el.dataset.min), el.dataset.title),
-  homeCheerSeen: () => update(s => { s.partner.seenCheers = s.partner.cheers.length; }),
   homeRoutine: el => {
     startRoutine(el.dataset.id);
     go('rutinas');

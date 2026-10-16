@@ -1,5 +1,5 @@
 // Flujos del ciclo central: anotar, partir un foco, marcar un hábito y no perder datos.
-import { test, expect, KEY, estadoDePrueba } from './fixture.mjs';
+import { test, expect, KEY, HOY, estadoDePrueba } from './fixture.mjs';
 
 test('anotar sin IA: aparece como tarea guardada', async ({ page, app }) => {
   await app.abrir('capturar');
@@ -50,4 +50,28 @@ test('un estado viejo e incompleto se completa sin perder tareas', async ({ page
   expect(s.tasks).toHaveLength(2);
   expect(Array.isArray(s.habits)).toBe(true);
   expect(errores).toEqual([]);
+});
+
+test('los datos de módulos congelados siguen intactos después de usar la app', async ({ page, app }) => {
+  const congelados = {
+    money: { expenses: [{ id: 'e1', amount: 4500, cat: 'comida', t: HOY.getTime() }], wishlist: [], weekBudget: 30000 },
+    partner: { enabled: true, token: 'x'.repeat(36), showTitles: false, cheers: [{ from: 'Ana', msg: 'Vamos' }], seenCheers: 0 },
+    goals: [{ id: 'g1', title: 'Titularme', why: 'porque sí', deadline: null, createdAt: HOY.getTime(), weekPlanned: null, done: false }],
+    shield: { since: HOY.getTime(), best: 3, events: [], guide: {} },
+    challenges: { month: '2026-10', claimed: ['c1'] },
+  };
+  await page.addInitScript(([k, extra]) => {
+    if (sessionStorage.getItem('congelados')) return;
+    sessionStorage.setItem('congelados', '1');
+    const s = JSON.parse(localStorage.getItem(k));
+    Object.assign(s, extra);
+    localStorage.setItem(k, JSON.stringify(s));
+  }, [KEY, congelados]);
+  await app.abrir('habitos');
+  await page.locator('button.check.big').first().click(); // un cambio real que guarda el estado
+  await app.abrir('dia');
+  await page.reload();
+  const s = await app.guardado();
+  for (const [clave, valor] of Object.entries(congelados)) expect(s[clave], clave).toEqual(valor);
+  expect(Object.values(s.habitLog).some(d => Object.keys(d).length)).toBe(true);
 });

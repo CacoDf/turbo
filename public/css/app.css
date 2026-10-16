@@ -382,3 +382,4 @@ label.muted { display: block; margin-top: 8px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+.day-links { margin: 8px 0 12px; }

@@ -184,7 +184,7 @@ export function computeReminders() {
     const morning = atTime(day, s.morningAt).getTime();
     if (morning > now && morning < horizon) {
       const n = openTasks().length;
-      out.push({ id: `morning-${dayKey(day)}`, at: morning, title: '☀️ Buenos días', body: n ? `Tienes ${n} cosas anotadas. Cuéntale a tu secretaria qué más tienes hoy.` : 'Tu secretaria te espera: cuéntale qué tienes hoy (1 minuto).' });
+      out.push({ id: `morning-${dayKey(day)}`, at: morning, title: '☀️ Buenos días', body: n ? `Tienes ${n} cosas anotadas. Anota qué más tienes hoy.` : 'Anota qué tienes hoy (1 minuto).' });
     }
     const habitsAt = atTime(day, s.habitsAt).getTime();
     if (habitsAt > now && habitsAt < horizon) {

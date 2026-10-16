@@ -50,7 +50,7 @@ export function calendarCard() {
     ${c.importOn ? `<p class="small">${c.lastError ? '🟡' : '🟢'} Conectado · ${state.extEvents.length} eventos en los próximos 2 meses${c.lastImport ? ` · actualizado ${new Date(c.lastImport).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
       ${c.lastError ? `<p class="small warn-text">⚠️ Último intento falló: ${c.lastError.replace(/[<>&]/g, '')}</p>` : ''}
       <div class="row"><button class="btn ghost" data-act="calRefresh">Actualizar ahora</button><button class="btn danger ghost" data-act="calImportOff">Desconectar</button></div>`
-      : `<p class="muted small">Lo que anotes en Google Calendar aparece en Turbo (en Día, en los avisos y para tu secretaria).</p>
+      : `<p class="muted small">Lo que anotes en Google Calendar aparece en Turbo (en Día y en los avisos).</p>
       <details class="small"><summary><b>Paso a paso para sacar el link</b></summary>
         <ol class="muted">
           <li>En el <b>computador</b>, abre <b>calendar.google.com</b>.</li>

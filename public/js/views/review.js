@@ -51,7 +51,7 @@ function fallback(s) {
   if (highlights.length < 2 && s.xp) highlights.push(`Ganaste ${s.xp} XP en ${s.dias_activos} ${s.dias_activos === 1 ? 'día' : 'días'} activos`);
   if (!highlights.length) highlights.push('Abriste Turbo y estás revisando tu semana: eso ya cuenta');
   const priorities = [...s.evaluaciones_proximas.map(e => `Preparar ${e}`), ...s.atrasadas.map(t => `Cerrar: ${t}`), ...s.metas.map(m => `Avanzar en ${m.meta}`)].slice(0, 3);
-  while (priorities.length < 3) priorities.push(['Hacer al menos 1 sesión de foco al día', 'Completar tus hábitos 5 de 7 días', 'Usar la secretaria cada mañana'][priorities.length]);
+  while (priorities.length < 3) priorities.push(['Hacer al menos 1 sesión de foco al día', 'Completar tus hábitos 5 de 7 días', 'Anotar en Capturar cada mañana'][priorities.length]);
   return { highlights, insight: s.dias_activos >= 5 ? 'Estuviste activo casi todos los días: la constancia te está funcionando.' : 'Hubo días sin actividad. Probemos con algo mínimo diario: solo 5 minutos.', priorities, message: '¡Vamos por otra semana! 🏎️' };
 }
 
