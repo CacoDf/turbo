@@ -69,3 +69,8 @@ test('fin de semana: solo cuenta el tiempo entre dos cosas, no antes de la prime
   assert.deepEqual(ver(r), ['12:00-13:30 largo']);
   assert.deepEqual(huecos([{ start: '11:00', end: '12:00' }], opcionesHueco({}, 6)), [], 'una sola cosa no deja huecos');
 });
+
+test('fin de semana: entre cosas a cualquier hora (no se recorta a 08:30–20:00)', () => {
+  assert.deepEqual(ver(huecos([{ start: '18:00', end: '19:00' }, { start: '21:00', end: '22:00' }], opcionesHueco({}, 6))), ['19:00-21:00 largo']);
+  assert.deepEqual(ver(huecos([{ start: '07:00', end: '08:00' }, { start: '10:00', end: '11:00' }], opcionesHueco({}, 0))), ['08:00-10:00 largo']);
+});

@@ -123,9 +123,8 @@ const MANANA = '(?<!(?:de|en|por) la )mañana';
 // "el 3" o "el 3 de noviembre": un día del mes (no "el 3 a las…" ni "el 3h").
 const EL_DIA = /(?:^|\s)el\s+(\d{1,2})(?![\d:./-]|\s*(?:h\b|hrs?\b|am\b|pm\b))/i;
 
-function detectDue(text) {
+function detectDue(text, today = new Date()) {
   const t = text.toLowerCase();
-  const today = new Date();
   if (word('pasado mañana').test(t)) return dayKey(addDays(today, 2));
   if (word(MANANA).test(t)) return dayKey(addDays(today, 1));
   if (word('hoy|ahora|urgente').test(t)) return dayKey(today);
@@ -219,7 +218,8 @@ function cleanTitle(line, found, hasDate) {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
 }
 
-export function localParse(text) {
+// ahora: cuándo se dijo (el Atajo puede haberse dictado ayer): "mañana" y "a las 9" se cuentan desde ahí.
+export function localParse(text, ahora = new Date()) {
   return text
     // Una idea por línea, por ";", "•" o coma (el dictado llega en una sola línea con comas). El guion separa
     // solo si no está entre horas ("15:00 - 16:30" es un rango).
@@ -228,10 +228,10 @@ export function localParse(text) {
     .filter(s => s.length > 2)
     .map(line => {
       const time = detectTime(line);
-      const due = detectDue(line);
+      const due = detectDue(line, ahora);
       if (time) {
         // Con hora es un evento: sin fecha, hoy (o mañana si la hora ya pasó).
-        const now = new Date();
+        const now = ahora;
         const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const date = due || dayKey(time.hm > nowHm ? now : addDays(now, 1));
         return { kind: 'evento', title: cleanTitle(line, time.found, !!due) || 'Evento', date, start: time.hm, end: time.end || defaultEnd(time.hm) };

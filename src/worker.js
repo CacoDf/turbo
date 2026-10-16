@@ -29,7 +29,9 @@ export default {
       return await api(request, env, url, ctx);
     } catch (e) {
       console.error(e);
-      return json({ error: e.message || 'Error' }, e.status || 500);
+      // El Atajo de iOS solo lee "mensaje": así Siri dice el error en vez de quedar en blanco.
+      const extra = url.pathname === '/api/shortcut/anotar' ? { mensaje: `No pude anotar: ${e.message || 'error'}` } : {};
+      return json({ error: e.message || 'Error', ...extra }, e.status || 500);
     }
   },
 
@@ -216,7 +218,8 @@ async function api(request, env, url, ctx) {
       if (env.GEMINI_API_KEY) {
         try {
           const n = santiagoParts();
-          items = (await aiCapture(env, texto, `${keyOf(dayNum(n.y, n.m, n.d))} ${pad(n.hh)}:${pad(n.mm)} (Chile)`)).map(i => ({ ...i, id: `at${hex(6)}` }));
+          const dia = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][fromDayNum(dayNum(n.y, n.m, n.d)).dow];
+          items = (await aiCapture(env, texto, `${dia} ${keyOf(dayNum(n.y, n.m, n.d))}, ${pad(n.hh)}:${pad(n.mm)} (hora de Chile)`)).map(i => ({ ...i, id: `at${hex(6)}` }));
         } catch (e) {
           console.warn('Atajo: IA', e.message);
         }
@@ -587,7 +590,8 @@ async function sincronizar(env, now, { leer = true } = {}) {
     if (leer) {
       const { desde, hasta } = rango(hoy);
       const r = await llamarPuente(`${u}?t=${token}&desde=${desde}&hasta=${hasta}`);
-      lectura = reconciliar({ state, mapa, google: normalizar(r.eventos), hoy });
+      const previo = await kvGet(env, 'importCache');
+      lectura = reconciliar({ state, mapa, google: normalizar(r.eventos), hoy, freno: previo?.freno || [] });
       mapa = lectura.mapa;
     }
     const pendiente = paraGoogle({ state, mapa, hoy });
@@ -602,7 +606,7 @@ async function sincronizar(env, now, { leer = true } = {}) {
   const escrituras = [];
   if (huella(mapa) !== huella(mapa0 || {})) escrituras.push(kvSet(env, 'puente', mapa));
   if (lectura) {
-    const cache = { fuente: 'puente', events: lectura.eventos, cambios: lectura.cambios };
+    const cache = { fuente: 'puente', events: lectura.eventos, cambios: lectura.cambios, freno: lectura.freno };
     const h = huella(cache);
     if ((await kvGet(env, 'importCache'))?.h !== h) escrituras.push(kvSet(env, 'importCache', { ...cache, h, t: now }, now));
   }

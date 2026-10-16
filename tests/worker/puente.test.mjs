@@ -78,8 +78,20 @@ test('reconciliar: si de una vez desaparece casi todo lo de Turbo, no se borra n
   const r = reconciliar({ state: { schedule: items }, mapa, google: quedan, hoy: HOY });
   assert.deepEqual(r.cambios, []);
   assert.deepEqual(r.mapa, mapa);
+  // Si en la lectura siguiente siguen sin estar, el borrado era de verdad: Turbo lo sigue (el freno no se traba).
+  const r2 = reconciliar({ state: { schedule: items }, mapa: r.mapa, google: quedan, hoy: HOY, freno: r.freno });
+  assert.deepEqual(r2.cambios.map(c => c.id), ['a', 'b', 'c']);
+  assert.ok(r2.cambios.every(c => c.borrar));
   const uno = reconciliar({ state: { schedule: items }, mapa, google: normalizar(['b', 'c', 'd'].map(id => ({ title: 'Dentista', turboId: id, gid: `g${id}`, dia1: '2026-10-22', hora1: '15:00', dia2: '2026-10-22', hora2: '16:00' }))), hoy: HOY });
   assert.deepEqual(uno.cambios, [{ id: 'a', borrar: true }], 'borrar uno sí se sigue');
+});
+
+test('reconciliar: un evento con marca de Turbo que Turbo ya no tiene se ve como evento de Google (nunca invisible)', () => {
+  const google = normalizar([{ title: 'Dentista', turboId: 'd1', gid: 'g1', dia1: '2026-12-30', hora1: '15:00', dia2: '2026-12-30', hora2: '16:00' }]);
+  const r = reconciliar({ state: { schedule: [] }, mapa: {}, google, hoy: HOY });
+  assert.deepEqual(r.eventos.map(e => e.title), ['Dentista']);
+  const borrandose = reconciliar({ state: { schedule: [], calBorrados: ['d1'] }, mapa: { d1: 'g1' }, google, hoy: HOY });
+  assert.deepEqual(borrandose.eventos, [], 'si lo está borrando Turbo, no se muestra');
 });
 
 test('reconciliar: lo que está fuera de lo leído (muy viejo) no se da por borrado', () => {

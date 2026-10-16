@@ -41,7 +41,9 @@ test('Atajo con IA: queda en la bandeja, sale en Google y avisa, sin abrir la ap
     await w.req('PUT', 'state', { updatedAt: ahora, state: { schedule: [], tasks: [], habits: [], routines: [] } });
     await w.json('PUT', 'puente/url', { url: 'https://script.google.com/macros/s/AKfyc-x/exec' });
 
-    assert.equal((await w.req('POST', 'shortcut/anotar', { texto: 'dentista pasado mañana a las 15' }, false)).status, 401, 'sin la clave no entra');
+    const sinClave = await w.req('POST', 'shortcut/anotar', { texto: 'dentista pasado mañana a las 15' }, false);
+    assert.equal(sinClave.status, 401, 'sin la clave no entra');
+    assert.match((await sinClave.json()).mensaje, /No pude anotar: Clave secreta incorrecta/, 'Siri lee el error');
     w.geminiReply = { tasks: [{ title: 'Ir al dentista', area: 'personal', minutes: 60, due: dia, start: '15:00' }] };
     const r = await w.json('POST', 'shortcut/anotar', { texto: 'dentista pasado mañana a las 15' });
     assert.match(r.mensaje, /^Anotado: Ir al dentista, \S+ \d+ a las 15:00 ✅$/);

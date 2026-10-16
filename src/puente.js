@@ -60,7 +60,8 @@ export function anotarEscritura(mapa, { creados = {}, borrados = [] } = {}, borr
 
 // Compara lo leído en Google con lo de Turbo. Google manda: si movió o borró algo que nació en Turbo,
 // Turbo lo sigue (cambios). Los eventos de Turbo no se devuelven como eventos de Google: así nada sale doble.
-export function reconciliar({ state = {}, mapa = {}, google = [], hoy }) {
+// freno: los ids que la lectura anterior dejó sin borrar por el freno (si se repiten, el borrado era de verdad).
+export function reconciliar({ state = {}, mapa = {}, google = [], hoy, freno = [] }) {
   const items = new Map((state.schedule || []).map(b => [b.id, b]));
   const borradosTurbo = new Set(state.calBorrados || []);
   const deTurbo = new Map();
@@ -88,16 +89,19 @@ export function reconciliar({ state = {}, mapa = {}, google = [], hoy }) {
       m[id] = null; // queda marcado para no volver a crearlo mientras la app no lo saque
     }
   }
-  // Freno: si de una vez "desaparecen" 3 o más y son la mitad o más de lo de Turbo en Google, es más probable
-  // un error de lectura que un borrado de verdad. No se borra nada en Turbo; se vuelve a mirar en la próxima lectura.
+  // Un evento con marca de Turbo se esconde solo si Turbo lo muestra (o lo está borrando). Si no, es un evento
+  // más de Google (p. ej. se movió lejos y Turbo lo soltó): nunca queda invisible.
+  const eventos = google.filter(e => !e.turboId || !(items.has(e.turboId) || borradosTurbo.has(e.turboId)));
+  // Freno: si de una vez "desaparecen" 3 o más y son la mitad o más de lo de Turbo en Google, puede ser un error
+  // de lectura. Esa vez no se borra nada; si en la lectura siguiente siguen sin estar, se borran.
   const borrados = cambios.filter(c => c.borrar && mapa[c.id] !== null);
   const enGoogle = Object.values(mapa).filter(Boolean).length;
-  if (borrados.length >= 3 && borrados.length * 2 >= enGoogle) {
+  const yaVistos = new Set(freno);
+  if (borrados.length >= 3 && borrados.length * 2 >= enGoogle && !borrados.every(c => yaVistos.has(c.id))) {
     for (const c of borrados) m[c.id] = mapa[c.id];
-    return { eventos: google.filter(e => !e.turboId), cambios: cambios.filter(c => !borrados.includes(c)), mapa: m };
+    return { eventos, cambios: cambios.filter(c => !borrados.includes(c)), mapa: m, freno: borrados.map(c => c.id) };
   }
-  const eventos = google.filter(e => !e.turboId);
-  return { eventos, cambios, mapa: m };
+  return { eventos, cambios, mapa: m, freno: [] };
 }
 
 // El estado con los cambios de Google aplicados: lo usan los avisos del cron y la app.

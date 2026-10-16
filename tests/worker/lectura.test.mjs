@@ -59,3 +59,10 @@ test('el dictado en una sola línea con comas se separa en cada cosa', () => {
   assert.deepEqual([r[2].title, r[2].due, r[2].minutes], ['Estudiar cálculo 2 horas', '2026-10-21', 120]);
   assert.deepEqual(r[3], ev('Almuerzo con la Caro', '2026-10-20', '13:00', '14:00'));
 });
+
+test('Atajo sin IA: "mañana" y "a las 9" se cuentan desde que se dictó, no desde que se abre la app', () => {
+  const dictado = new Real(2026, 9, 19, 23, 0); // lunes 23:00; la app se abre el martes a las 10:00
+  assert.deepEqual(localParse('dentista mañana a las 10', dictado)[0], ev('Dentista', '2026-10-20', '10:00', '11:00'));
+  const temprano = new Real(2026, 9, 20, 8, 0); // dictado a las 08:00, abierto a las 10:00
+  assert.deepEqual(localParse('reunión a las 9', temprano)[0], ev('Reunión', '2026-10-20', '09:00', '10:00'));
+});

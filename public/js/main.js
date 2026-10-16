@@ -112,8 +112,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return flushBackup();
   alAbrir();
   checkStreak();
-  pullBackup().then(traerBandeja); // después del respaldo: así no lo pisa
-  refreshExternal();
+  // Primero el respaldo, después la bandeja del Atajo y al final Google (que puede mover lo del Atajo).
+  pullBackup().then(traerBandeja).then(() => refreshExternal());
   queueRender();
 });
 
@@ -127,8 +127,8 @@ async function boot() {
   }
   if (await pullBackup()) queueRender();
   scheduleBackup();
+  await traerBandeja();
   refreshExternal();
-  traerBandeja();
 }
 
 boot();

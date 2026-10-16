@@ -18,7 +18,7 @@ export async function traerBandeja() {
     let n = 0;
     for (const e of nuevos) {
       // Sin IA en el servidor llega solo el texto: se ordena aquí, igual que en Capturar.
-      const lista = e.items || localParse(e.texto || '');
+      const lista = e.items || localParse(e.texto || '', new Date(e.t || Date.now()));
       n += addEvents(lista.filter(esEvento)).length;
       addTasks(lista.filter(i => !esEvento(i)));
       n += lista.filter(i => !esEvento(i)).length;

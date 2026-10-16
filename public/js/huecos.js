@@ -14,8 +14,8 @@ export function opcionesHueco(s = {}, dow = 1) {
   const desde = aMin(s.huecoDesde) ?? aMin(HUECO.desde);
   const hasta = aMin(s.huecoHasta) ?? aMin(HUECO.hasta);
   const min = Number(s.huecoMin) > 0 ? Number(s.huecoMin) : HUECO.min;
-  const soloEntre = dow === 0 || dow === 6;
-  return desde < hasta ? { desde, hasta, min, soloEntre } : { desde: aMin(HUECO.desde), hasta: aMin(HUECO.hasta), min, soloEntre };
+  if (dow === 0 || dow === 6) return { desde: 0, hasta: 24 * 60, min, soloEntre: true }; // fin de semana: cualquier hora, entre cosas
+  return desde < hasta ? { desde, hasta, min, soloEntre: false } : { desde: aMin(HUECO.desde), hasta: aMin(HUECO.hasta), min, soloEntre: false };
 }
 
 // bloques: [{ini, fin}] en minutos del día, o [{start, end}] en 'HH:MM'. Los de todo el día no ocupan tiempo.
