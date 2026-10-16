@@ -12,7 +12,7 @@ No cambies de app ni partas de cero: reconstruye turbo como **Turbo 2.0**, más 
 - Turbo 2.0 tiene 4 pestañas y un ciclo central: detecta tus tiempos muertos en Google Calendar, te avisa y te ayuda a partir en 5 minutos.
 - La insistencia llega por avisos escalonados, el número en el ícono y los Atajos de iOS (Siri, pantalla bloqueada y automatizaciones).
 - Sin Mac, una app nativa no conviene: con cuenta gratis vence cada 7 días y no tiene notificaciones push.
-- Se construye en 6 fases con Claude Code, cada una seguida de 7 días de uso real. Plan B sin programar: Super Productivity + Habitica desde la App Store.
+- Fase 0 y Fase 1 están hechas. Siguen 7 sesiones cortas con Claude Code, en el orden que eligió Joaquín: primero lo que hace útil la app (avisos sin abrirla y una sola lista con Calendar) y el look al final. Cada sesión termina publicada y probada en el iPhone. Plan B sin programar: Super Productivity + Habitica desde la App Store (no cubre lo que Joaquín pide; ver más abajo).
 
 ## Diagnóstico: por qué turbo no funcionó
 
@@ -31,10 +31,14 @@ Lo que sí sirvió, aunque fuera unos días: Ahora + Foco, Hábitos + Rutinas, V
 | --- | --- | --- |
 | Me olvidaba de abrirla | Los avisos se calculaban en el teléfono (`computeReminders` en `planner.js`), solo al abrir la app y para las 36 horas siguientes. Si no la abrías un día y medio, dejaban de llegar | El servidor calcula los avisos solo, y te busca con avisos escalonados, Atajos de iOS y número en el ícono |
 | Se volvió aburrida | Recompensa fija (XP que sube autos) que se vuelve predecible | Recompensas variables y temporadas cortas que se renuevan |
-| Faltaba pulido | 3 fases en 8 días, sin pruebas y sin una semana de uso real entre fases | Cada fase se usa 7 días antes de construir la siguiente, con pruebas |
+| Faltaba pulido | 3 fases en 8 días, sin pruebas y sin una semana de uso real entre fases | Cada sesión se publica y se prueba en el celu el mismo día, con pruebas. El look va al final, con vistas previas |
 | Tiempos muertos entre clases | La app usaba el tiempo libre para elegir tarea, pero no detectaba huecos ni avisaba de ellos | Detector de huecos que avisa y propone una tarea que cabe |
 
-El patrón de construir todo en un hiperfoco de 8 días y después soltarlo es parte del problema. Por eso el plan pone reglas para Joaquín y para Claude Code, no solo funciones.
+El patrón de construir todo en un hiperfoco de 8 días y después soltarlo puede ser parte del problema, pero Joaquín lo corrigió con su propia experiencia (16-10-2026): la Turbo vieja no se soltó por construir rápido. Nunca le gustó cómo quedó, no la sintió útil ni completa, y la encontraba tediosa.
+
+Su patrón de éxito es `CacoDf/split4dias` (app de entrenamiento, un archivo, 26 commits entre agosto y octubre): la hizo completa y útil como la quería desde el inicio, la usó y recién después la fue puliendo a su gusto, incluido el rediseño, que antes vio en una página de vistas previas. Al principio también se veía genérica y la usaba igual, porque era útil.
+
+De ahí salen las reglas de este plan: primero lo que la hace útil, el look al final, cada sesión publicada y probada en el celu el mismo día, y un freno de uso en vez de una espera fija (ver Reglas anti-abandono).
 
 ## Lo que encontré en GitHub y qué robarle a cada uno
 
@@ -52,6 +56,8 @@ Ningún proyecto open source cubre hábitos, tareas, foco, gamificación y calen
 | [dayGLANCE](https://github.com/krelltunez/dayGLANCE) | Sin dato | Bloques de tiempo con Pomodoro | PWA | Vista del día en bloques, importación de Google Calendar por iCal |
 
 Plan B si algún día no quieres programar: Super Productivity + Habitica desde la App Store.
+
+Revisado el 16-10-2026 (README de cada proyecto): ninguno mantiene tareas y calendario como una sola lista en los dos sentidos. Super Productivity importa por CalDAV, dayGLANCE solo lee el calendario, unstuck solo exporta un `.ics` y adhd-focus no tiene calendario. unstuck reconoce que, sin servidor de push, no puede avisar con la app cerrada; Turbo ya tiene servidor y cron. Por eso el Plan B no cubre lo que Joaquín pide y vale construirlo.
 
 ## La decisión: PWA, no app nativa
 
@@ -145,7 +151,7 @@ Los Atajos hablan directo con el servidor (endpoints `/api/shortcut/*` con `APP_
 | Tocar un sticker NFC en el escritorio | Parte 5 min de foco | Sí |
 | Hora del día | Rutina de noche | Puede pedir un toque |
 
-Pregunta abierta para la fase 3: probar si un Atajo puede abrir Turbo instalado o si lo abre en Safari.
+Pregunta abierta para la sesión 1: probar si un Atajo puede abrir Turbo instalado o si lo abre en Safari.
 
 ## Integraciones gratis
 
@@ -169,18 +175,25 @@ Convertir lo dictado en tareas, desglosar una tarea en su primer paso físico y 
 
 ## Plan de construcción con Claude Code
 
-6 fases cortas, una sesión cada una, con 7 días de uso real entre fases (desde la fase 1). El copiloto `/turbo` dice en cada sesión qué modelo, esfuerzo y pasos tocan.
+Fase 0 y Fase 1 están cerradas y publicadas. Siguen 7 sesiones, en el orden que eligió Joaquín el 16-10-2026: primero lo que hace útil la app (avisos sin abrirla y una sola lista con Calendar) y el look al final.
+
+- El ritmo lo decide Joaquín. Cada sesión dura máximo 2 horas.
+- Cada sesión termina publicada y probada en su iPhone el mismo día.
+- Antes de cada sesión nueva, Claude pregunta si abrió Turbo estos días y qué le molestó (ver Reglas anti-abandono).
+- Todo lo nuevo usa las variables CSS que ya existen, sin colores sueltos, para que el rediseño de la sesión 7 cueste poco.
+- El copiloto `/turbo` dice en cada sesión qué modelo, esfuerzo y pasos tocan.
 
 | Sesión | Listo cuando |
 | --- | --- |
-| Fase 0 · Red de seguridad | `npm test` pasa y deja capturas de cada pantalla |
-| Fase 1 · Recortar a 4 pestañas | Abre en Ahora y los datos siguen ahí |
-| Diseño 1 (impeccable) | Pruebas y `tester-tdah` sin problemas graves |
-| Fase 2 · Calendario real y huecos | Día muestra los huecos igual que Google Calendar |
-| Fase 3 · Insistencia | Llega el aviso con el iPhone bloqueado y Siri anota |
-| Fase 4 · Hábitos y juego | Saltarse un día no rompe la racha |
-| Diseño 2 (impeccable) | Igual que Diseño 1 |
-| Fase 5 · Estudios desde el calendario | Una prueba nueva genera sesiones en los huecos |
+| Fase 0 · Red de seguridad (cerrada) | `npm test` pasa y deja capturas de cada pantalla |
+| Fase 1 · Recortar a 4 pestañas (cerrada) | Abre en Ahora y los datos siguen ahí |
+| Sesión 1 · Avisos sin abrir | Llega un aviso con el iPhone bloqueado, sin haber abierto la app en 2 días |
+| Sesión 2 · Lista única dentro de Turbo | Anotas "dentista jueves 15:00" y lo ves en Día como cualquier evento, con aviso |
+| Sesión 3 · Puente con Google y huecos | Lo que anotas sale en Google Calendar, los eventos de Google aparecen en Ahora y Día muestra los huecos igual que Google |
+| Sesión 4 · Foco y Ahora de verdad | La usas en una sesión real de foco y Ahora propone la tarea que cabe |
+| Sesión 5 · Hábitos y juego | Saltarse un día no rompe la racha |
+| Sesión 6 · Estudios desde el calendario | Una prueba nueva genera sesiones en los huecos |
+| Sesión 7 · Look con impeccable | Joaquín dice "ya no me molesta" y `tester-tdah` sin problemas graves |
 | Después | Dos semanas sin funciones nuevas |
 
 ### Fase 0: red de seguridad
@@ -199,36 +212,67 @@ Cuatro pestañas, módulos congelados fuera de la navegación, datos intactos e 
 Fase 1 de @docs/PLAN.md. En modo plan: deja solo 4 pestañas (Ahora, Día, Capturar, Foco) y saca de la navegación Plata, Pareja, Escudo, Metas, Desafíos y el chat de Secretaria, sin borrar sus datos. Revisa las consultas del cron en src/worker.js y agrega índices para no pasar el límite gratis de D1. Implementa, corre las pruebas y muéstrame capturas.
 ```
 
-### Fase 2: calendario real y huecos
+### Sesión 1: avisos sin abrir
+
+`opus` · `xhigh`, modo plan. El iPhone de Joaquín tiene iOS 26.6, así que el push declarativo es viable; falta probarlo en el aparato.
 
 ```text
-Fase 2 de @docs/PLAN.md. Entrevístame primero con preguntas cortas (hora de despertar y dormir, tamaño mínimo de hueco, palabras que marcan pruebas). Luego escribe el Apps Script (archivo aparte, con instrucciones paso a paso para pegarlo en script.google.com) y el detector de huecos con pruebas unitarias que cubran días con clases seguidas, eventos de todo el día y huecos de menos de 15 min.
+Sesión 1 de @docs/PLAN.md. En modo plan. Mueve el cálculo de avisos (computeReminders en planner.js) al worker para que no dependa de abrir la app: el worker ya guarda el respaldo del estado y el link iCal, calcula desde ahí en el cron (con índices). Migra las notificaciones a Declarative Web Push manteniendo el service worker como respaldo, y agrega el número en el ícono. Reglas: máximo 3 avisos por hueco, frases que rotan, silencio en clases y después de la hora de dormir. Agrega el "día mínimo" de 2 minutos tras 3 días sin abrir. Escribe pruebas del worker para el cálculo y dime qué probar con el iPhone bloqueado.
 ```
 
-### Fase 3: insistencia
+### Sesión 2: lista única dentro de Turbo
+
+`opusplan` · `high`, modo plan.
 
 ```text
-Fase 3 de @docs/PLAN.md. Mueve el cálculo de avisos (computeReminders en planner.js) al worker para que no dependa de abrir la app. Migra las notificaciones a Declarative Web Push (iOS 18.4+) manteniendo el respaldo actual, implementa la escalera de avisos (máximo 3 por hueco, frases que rotan, silencio en clases y de noche) y el badge del ícono. Crea endpoints /api/shortcut/* protegidos con APP_SECRET y escribe una guía en español para armar cada Atajo en iOS.
+Sesión 2 de @docs/PLAN.md. En modo plan. Haz que Capturar decida si lo que anoto es tarea o evento con hora (con respaldo sin IA en localParse), permite que una tarea tenga hora y muestra tareas y eventos de Google en la misma línea de tiempo de Día. Sin pestañas ni pantallas nuevas. Que avise igual que un evento. Prueba con "dentista jueves 15:00".
 ```
 
-### Fase 4: hábitos y juego
+### Sesión 3: puente con Google y huecos
+
+`opus` · `high`, modo plan.
+
+```text
+Sesión 3 de @docs/PLAN.md. Entrevístame primero con preguntas cortas (hora de despertar y dormir, tamaño mínimo de hueco, palabras que marcan pruebas, cómo mostrar lo que viene de Google para que no se duplique). Luego escribe el Apps Script (archivo aparte, con instrucciones paso a paso para pegarlo en script.google.com) para crear y leer eventos en los dos sentidos, y el detector de huecos de tiempo libre (incluye bloques largos) con pruebas unitarias que cubran días con clases seguidas, eventos de todo el día y huecos de menos de 15 min. Cierra con el aviso 5 minutos antes de un hueco y el Atajo de iOS "Anotar en Turbo" (endpoints /api/shortcut/* protegidos con APP_SECRET y guía en español para armarlo).
+```
+
+### Sesión 4: Foco y Ahora de verdad
+
+`opusplan` · `high`, modo plan.
+
+```text
+Sesión 4 de @docs/PLAN.md. Entrevístame primero (¿solo 3 tareas por día?, ¿ritual de 30 segundos?). Agrega el ritual antes del foco, "puedes parar" al terminar, aprender cuánto subestimo el tiempo (estimado contra real) y que Ahora proponga UNA tarea que cabe en el hueco según mi energía y contexto. Suma el Atajo "Partir 5 min".
+```
+
+### Sesión 5: hábitos y juego
+
+`opusplan` · `medium`, modo plan.
 
 Rachas semanales, "saltar hoy" y reparar racha, XP por partir, bonus sorpresa y la primera temporada de 4 semanas.
 
-### Fase 5: estudios desde el calendario
+### Sesión 6: estudios desde el calendario
+
+`opusplan` · `high`, modo plan.
 
 Las pruebas se detectan en el calendario, la IA reparte sesiones hacia atrás y se crean como eventos en Google Calendar. Probar primero con datos de prueba.
 
+### Sesión 7: look con impeccable
+
+`opus` · `medium`.
+
+Una sola sesión de diseño, al final: `init`, `critique`, `audit`, `layout`/`typeset`/`colorize`, `adapt`, `harden` y `polish`; al final `delight` y `animate` con moderación. Contexto: app para TDAH, iPhone, una mano, 3 minutos libres, sin culpa. Joaquín quiere descubrir la identidad con vistas previas, como hizo con VANDAL en split4dias: primero una página aparte con 3 direcciones, él elige una y recién entonces se aplica a la app. Sus molestias con el look actual: se siente genérico ("AI slop") y recarga de cosas escondidas.
+
 ## Reglas anti-abandono
 
-En un estudio con una app para adultos con TDAH, el 36% abandonó antes de la segunda semana y casi nadie se fue después de la cuarta (Inflow, PLOS Digital Health). Las primeras dos semanas de cada fase son las que hay que proteger.
+En un estudio con una app para adultos con TDAH, el 36% abandonó antes de la segunda semana y casi nadie se fue después de la cuarta (Inflow, PLOS Digital Health). Las primeras dos semanas son las que hay que proteger: por eso lo primero que se construye son los avisos que te buscan.
 
 Para Joaquín:
 
-- Regla de los 7 días: no se construye la fase siguiente sin haber usado la actual 7 días.
-- Una sesión de Claude Code por semana para Turbo, de máximo 2 horas.
+- Freno de uso (reemplaza la regla de los 7 días): antes de cada sesión nueva, Claude te pregunta si abriste Turbo estos días y qué te molestó. Si no la abriste, esa sesión se usa para arreglar por qué, no para construir.
+- Sesiones de máximo 2 horas. El ritmo lo decides tú.
+- Cada sesión termina publicada y probada en tu iPhone el mismo día.
 - Las ideas van a `IDEAS.md`, no al código. En la revisión del domingo se elige máximo una.
-- Volver sin culpa: tras 3 días sin abrirla, la app ofrece un "día mínimo" de 2 minutos.
+- Volver sin culpa: tras 3 días sin abrirla, la app ofrece un "día mínimo" de 2 minutos (sesión 1).
 - Revisión del domingo de 5 minutos: qué se usó, qué se ignoró y qué sobra.
 
 Para Claude Code: están en `CLAUDE.md`.
