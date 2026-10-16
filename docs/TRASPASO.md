@@ -16,7 +16,7 @@ Pega este documento al inicio de un chat nuevo. Tu rol: ser mi ayudante mientras
 
 - Uso Claude Code dentro de la app **Claude Desktop** (Windows), casi nunca PowerShell. Explícame todo en términos de la app: menús junto al botón de enviar para modelo (Ctrl+Shift+I), esfuerzo (Ctrl+Shift+E) y modo Plan/Auto (Ctrl+Shift+M). Shift+Tab no funciona en Desktop.
 - Sesiones de Code en **Nube → Default**, repo **CacoDf/turbo**, rama **turbo-2** (nunca main: main publica a Cloudflare). Tengo créditos de nube (USD 75, vencen el 5 de noviembre de 2026); después usan mi plan normal sin recargar.
-- Nueva sesión por cada sesión del plan. Si la sesión ve una copia vieja, pedirle: "git fetch y git pull de turbo-2, vuelve a leer docs/PROGRESO.md".
+- Nueva sesión por cada sesión del plan. Al abrirse, la sesión se pone sola en `turbo-2` al día con GitHub (hook de inicio). Si igual dice una fase vieja, pedirle: "git fetch y git pull de turbo-2, vuelve a leer docs/PROGRESO.md".
 - Mi carpeta en el PC es `C:\Users\Victus\OneDrive - Universidad Adolfo Ibanez\Documents\ADHD\turbo` (rama turbo-2). Lo que Claude hace en la nube llega a mi PC solo cuando corro `git pull origin turbo-2` ahí. Ya tengo Node, `npm install` y WebKit instalados: `npm test` corre completo en mi PC.
 
 ## Archivos en el repo (rama turbo-2)
@@ -51,7 +51,7 @@ Receta de cada sesión: modo Plan con Opus → leer plan → cambiar a Sonnet �
 
 - Fase 0 y Fase 1 cerradas, verificadas con WebKit en mi PC y publicadas en `main`.
 - Respaldo hecho desde el iPhone (Ajustes → Descargar respaldo).
-- Plan v2 acordado: siguiente es la **Sesión 1 (avisos sin abrir)**. Antes de partir: `git pull origin turbo-2` en mi PC y `npm test`.
+- Sesión 1 (avisos sin abrir) publicada en `main` y probada en el iPhone el 16-10-2026: todo bien. Siguiente: **Sesión 2 (lista única)**.
 - Pendiente de confirmar en el iPhone: que Capturar ya no descuadre la barra de abajo.
 - Pendiente opcional: `/run-skill-generator` (no es necesario por ahora).
 

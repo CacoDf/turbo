@@ -9,6 +9,8 @@ Tu trabajo es decirle a Joaquín, en corto y paso a paso, qué hacer ahora para 
 
 ## 1. Lee el estado
 
+Primero, confirma que el repo está al día: el hook de inicio (`.claude/hooks/al-iniciar.mjs`) deja una línea "Repo al día: rama turbo-2…". Si no la ves, o dice "Ojo", corre tú `git fetch origin turbo-2`, `git checkout turbo-2` y `git pull origin turbo-2` antes de leer nada. Si no se puede, díselo a Joaquín en una línea y no adivines la fase con una copia vieja.
+
 Lee `docs/PROGRESO.md`. Si no existe, créalo con la plantilla del final (todo pendiente). Lee la fase que toca en `docs/PLAN.md`.
 
 ## 2. Decide qué toca

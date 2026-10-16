@@ -12,6 +12,7 @@ IMPORTANTE: en el primer mensaje de cada sesión, antes de cualquier otra cosa, 
 - Instalar (una vez): `npm install` y `npx playwright install webkit`
 - Pruebas: `npm test` (pruebas del worker con Miniflare + Playwright con WebKit en viewport iPhone 15). Capturas en `tests/capturas/`. Solo worker: `npm run test:worker`. Solo pantallas: `npm run test:ui`. WebKit es obligatorio; solo en la nube (sin WebKit) usa `TURBO_BROWSER=chromium npm test`.
 - Respaldo de datos desde el servidor a `respaldos/*.json`: `npm run respaldo` (hazlo antes de cualquier migración; la carpeta no se sube a git).
+- Al abrir una sesión, el hook `SessionStart` (`.claude/hooks/al-iniciar.mjs`) pasa a `turbo-2` y la trae al día desde GitHub. Nunca toca `main` ni cambios sin guardar. Si avisa que no pudo, ponla al día antes de leer `docs/PROGRESO.md`.
 - Publicar: Cloudflare publica solo al subir a `main`. Trabaja en la rama `turbo-2` y nunca hagas push a `main` sin que Joaquín lo pida.
 
 ## Reglas de producto
