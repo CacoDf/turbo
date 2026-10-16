@@ -4,7 +4,7 @@ import { state, update } from '../store.js';
 import { XP } from '../game.js';
 import { esc, uid, dayKey, addDays, parseDayKey, DAY_NAMES, DAY_SHORT } from '../util.js';
 import { toast } from '../ui.js';
-import { hasServer, aiAssistant, scheduleReminderSync } from '../api.js';
+import { hasServer, aiAssistant } from '../api.js';
 import { AREAS, blocksFor, openTasks } from '../planner.js';
 import { addTasks, completeTask, reward } from '../actions.js';
 import { CATS } from './money.js';
@@ -248,7 +248,6 @@ export const actions = {
       x.status = 'saved';
       x.actions = chosen.filter((_, i) => results[i] !== null).map((a, i2) => ({ ...a, ok: results.filter(r => r !== null)[i2] }));
     });
-    scheduleReminderSync();
     if (saved) reward(XP.assistant, 'assistant', `Tu secretaria anotó ${saved} ${saved === 1 ? 'cosa' : 'cosas'}`);
     if (results.includes(false)) toast('Algunas cosas no se pudieron guardar (⚠️)');
   },

@@ -3,7 +3,7 @@
 // - Tu calendario → Turbo: la "dirección secreta iCal" de Google Calendar; el servidor la lee.
 import { state, update } from './store.js';
 import { toast } from './ui.js';
-import { hasServer, calendarEnable, calendarImportSet, calendarImportGet, scheduleReminderSync } from './api.js';
+import { hasServer, calendarEnable, calendarImportSet, calendarImportGet } from './api.js';
 
 const feedPath = () => `/api/calendar/${state.calendar.token}.ics`;
 const httpsLink = () => `${location.origin}${feedPath()}`;
@@ -23,7 +23,6 @@ export async function refreshExternal(force = false) {
       s.calendar.lastError = error || null;
       s.calendar.importOn = !!connected;
     });
-    scheduleReminderSync();
     return { ok: !error, error };
   } catch (e) {
     console.warn('Calendario externo', e);
@@ -96,7 +95,6 @@ export const actions = {
         s.calendar.lastImport = Date.now();
         s.extEvents = events;
       });
-      scheduleReminderSync();
       toast(`🟢 Conectado: ${events.length} eventos encontrados`);
     } catch (e) {
       toast(e.message);
@@ -118,7 +116,6 @@ export const actions = {
       await calendarImportSet('');
     } catch {}
     update(s => { s.calendar.importOn = false; s.extEvents = []; });
-    scheduleReminderSync();
   },
 };
 

@@ -4,7 +4,6 @@ import { XP, habitStreak, habitsDoneToday, lastDays, shortDay } from '../game.js
 import { esc, dayKey, uid } from '../util.js';
 import { bar, toast, celebrate } from '../ui.js';
 import { reward } from '../actions.js';
-import { scheduleReminderSync } from '../api.js';
 import { rerender } from '../router.js';
 
 let editing = false;
@@ -66,7 +65,6 @@ export function setCount(id, n) {
       celebrate('¡Día de hábitos completo! 🏆');
     }
   }
-  scheduleReminderSync();
 }
 
 export const actions = {

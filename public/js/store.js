@@ -16,6 +16,8 @@ function defaultState() {
       morningAt: '09:00',
       habitsAt: '21:00',
       reviewAt: '19:00', // revisión semanal, los domingos
+      sleepAt: '00:30', // silencio de noche: sin avisos desde esta hora…
+      wakeAt: '06:00', // …hasta esta
     },
     schedule: [
       { id: uid(), title: 'Clases', kind: 'clase', days: [2, 3], start: '08:30', end: '11:30' },

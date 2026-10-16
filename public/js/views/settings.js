@@ -2,7 +2,7 @@
 import { state, update, replaceState, resetState } from '../store.js';
 import { esc, dayKey } from '../util.js';
 import { toast } from '../ui.js';
-import { ping, enablePush, testPush, pushSupport, pullBackup, scheduleBackup, scheduleReminderSync, hasServer } from '../api.js';
+import { ping, enablePush, testPush, pushSupport, pullBackup, scheduleBackup, hasServer } from '../api.js';
 import { rerender } from '../router.js';
 import { calendarCard } from '../calendar.js';
 
@@ -22,13 +22,15 @@ export function render() {
     <section class="card">
       <h3>🔔 Notificaciones</h3>
       ${sup.ok ? '' : `<p class="small warn-text">${esc(sup.why)}</p>`}
-      <p class="small">${s.notif ? '🟢 Activadas' : '⚪ Desactivadas'}</p>
+      <p class="small">${s.notif ? '🟢 Activadas: llegan aunque no abras la app' : '⚪ Desactivadas'}</p>
       <div class="row"><button class="btn" data-act="setPush">${s.notif ? 'Reconectar' : 'Activar'}</button>${s.notif ? '<button class="btn ghost" data-act="setTestPush">Probar</button>' : ''}</div>
-      <label class="muted small">Avisarme antes de cada bloque del horario (min)
+      <label class="muted small">Avisarme antes de cada clase o evento (min)
         <input class="input" type="number" min="0" max="120" step="5" value="${s.remindBefore}" data-change="setField" data-f="remindBefore"></label>
       <label class="muted small">Buenos días a las <input class="input" type="time" value="${s.morningAt}" data-change="setField" data-f="morningAt"></label>
       <label class="muted small">Revisar hábitos a las <input class="input" type="time" value="${s.habitsAt}" data-change="setField" data-f="habitsAt"></label>
       <label class="muted small">Revisión semanal (domingos) a las <input class="input" type="time" value="${s.reviewAt}" data-change="setField" data-f="reviewAt"></label>
+      <div class="muted small">Silencio de noche</div>
+      <div class="row"><label class="grow muted small">Desde <input class="input" type="time" value="${s.sleepAt}" data-change="setField" data-f="sleepAt"></label><label class="grow muted small">Hasta <input class="input" type="time" value="${s.wakeAt}" data-change="setField" data-f="wakeAt"></label></div>
     </section>
 
     ${calendarCard()}
@@ -91,7 +93,6 @@ export const actions = {
   setField: el => {
     const f = el.dataset.f;
     update(s => { s.settings[f] = f === 'remindBefore' ? Number(el.value) || 0 : el.value; });
-    scheduleReminderSync();
   },
   setExport: () => {
     const blob = new Blob([JSON.stringify({ ...state, settings: { ...state.settings, secret: '' } }, null, 2)], { type: 'application/json' });

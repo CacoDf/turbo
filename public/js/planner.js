@@ -166,62 +166,6 @@ export function fallbackSteps(task) {
   return base.map(([text, min]) => ({ id: uid(), text, min, done: false }));
 }
 
-// ---- Recordatorios que el servidor manda como notificación (próximas 36 h) ----
-
-export function computeReminders() {
-  const out = [];
-  const now = Date.now();
-  const horizon = now + 36 * 3600000;
-  const s = state.settings;
-  for (let i = 0; i < 2; i++) {
-    const day = addDays(new Date(), i);
-    for (const b of blocksFor(day)) {
-      const at = b.startAt.getTime() - s.remindBefore * 60000;
-      if (at > now && at < horizon) {
-        out.push({ id: `blk-${b.id}-${dayKey(day)}`, at, title: `${KINDS[b.kind]?.emoji || '📌'} ${b.title} en ${s.remindBefore} min`, body: `Parte a las ${b.start}. Deja lo que estás haciendo en un punto fácil de retomar.` });
-      }
-    }
-    const morning = atTime(day, s.morningAt).getTime();
-    if (morning > now && morning < horizon) {
-      const n = openTasks().length;
-      out.push({ id: `morning-${dayKey(day)}`, at: morning, title: '☀️ Buenos días', body: n ? `Tienes ${n} cosas anotadas. Anota qué más tienes hoy.` : 'Anota qué tienes hoy (1 minuto).' });
-    }
-    const habitsAt = atTime(day, s.habitsAt).getTime();
-    if (habitsAt > now && habitsAt < horizon) {
-      const log = state.habitLog[dayKey(day)] || {};
-      const pending = state.habits.filter(h => !h.archived && (log[h.id] || 0) < h.target);
-      if (pending.length) out.push({ id: `habits-${dayKey(day)}`, at: habitsAt, title: '✅ Revisa tus hábitos', body: `Te faltan: ${pending.map(h => h.emoji + ' ' + h.name).join(', ')}` });
-    }
-  }
-  for (let i = 0; i < 2; i++) {
-    const day = addDays(new Date(), i);
-    for (const r of state.routines || []) {
-      if (!r.at || !r.days?.includes(day.getDay()) || state.routineLog?.[dayKey(day)]?.[r.id]) continue;
-      const at = atTime(day, r.at).getTime();
-      if (at > now && at < horizon) out.push({ id: `rt-${r.id}-${dayKey(day)}`, at, title: `${r.emoji} Rutina de ${r.name}`, body: `${r.steps.length} pasos. Abre Turbo y sigue uno a la vez.` });
-    }
-  }
-  // Revisión semanal: domingo a la hora elegida.
-  for (let i = 0; i < 2; i++) {
-    const day = addDays(new Date(), i);
-    if (day.getDay() !== 0) continue;
-    const at = atTime(day, s.reviewAt || '19:00').getTime();
-    if (at > now && at < horizon) out.push({ id: `review-${dayKey(day)}`, at, title: '🧭 Revisión semanal (5 min)', body: 'Mira cómo te fue y elige tus 3 prioridades de la semana.' });
-  }
-  const tomorrow = dayKey(addDays(new Date(), 1));
-  for (const e of state.exams || []) {
-    if (e.done || e.date !== tomorrow) continue;
-    const at = atTime(new Date(), '20:00').getTime();
-    if (at > now) out.push({ id: `exam-${e.id}`, at, title: '📚 Mañana tienes evaluación', body: `${e.title}. Repaso corto y a dormir temprano.` });
-  }
-  for (const t of openTasks()) {
-    if (t.due === dayKey(addDays(new Date(), 1))) {
-      const at = atTime(new Date(), '19:00').getTime();
-      if (at > now) out.push({ id: `due-${t.id}`, at, title: '⏰ Mañana vence algo', body: t.title });
-    }
-  }
-  if (state.focus && state.focus.endAt > now) {
-    out.push({ id: 'focus-end', at: state.focus.endAt, title: '🏁 ¡Tiempo!', body: 'Terminó tu sesión de foco. ¿Cómo te fue?' });
-  }
-  return out;
-}
+// ---- Número en el ícono ----
+// Los avisos los calcula el servidor (src/avisos.js). Esta regla es la misma que usa él para el número: pendientesDel().
+export const pendientesHoy = () => state.tasks.filter(t => !t.done && (t.due ? t.due <= dayKey() : !!t.today)).length;

@@ -3,7 +3,6 @@ import { state, update } from '../store.js';
 import { blocksFor, allDayFor, KINDS, AREAS, nowAndNext } from '../planner.js';
 import { esc, addDays, dayKey, parseDayKey, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
 import { toast } from '../ui.js';
-import { scheduleReminderSync } from '../api.js';
 import { rerender } from '../router.js';
 
 let offset = 0;
@@ -100,7 +99,6 @@ export const actions = {
   },
   dayDel: el => {
     update(s => { s.schedule = s.schedule.filter(b => b.id !== el.dataset.id); });
-    scheduleReminderSync();
   },
   dayAdd: () => {
     const title = document.getElementById('bTitle').value.trim();
@@ -112,7 +110,6 @@ export const actions = {
     if (!title || (!days.length && !date) || !start || !end) return toast('Falta nombre, días (o fecha) u horas');
     if (hmToMin(end) <= hmToMin(start)) return toast('La hora de término debe ser después del inicio');
     update(s => { s.schedule.push({ id: uid(), title, kind, days, date, start, end }); });
-    scheduleReminderSync();
     toast('Bloque agregado');
   },
 };

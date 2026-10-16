@@ -4,7 +4,6 @@ import { XP } from '../game.js';
 import { esc, dayKey, fmtClock, fmtDuration, minToHm, uid, DAY_SHORT } from '../util.js';
 import { bar, toast, celebrate, beep, unlockAudio } from '../ui.js';
 import { reward } from '../actions.js';
-import { scheduleReminderSync } from '../api.js';
 import { rerender } from '../router.js';
 
 let run = null; // { id, i, stepStart }
@@ -134,7 +133,6 @@ function advance() {
   });
   reward(XP.routine, 'routine', `Rutina ${r.emoji} ${r.name}`);
   celebrate(`${r.emoji} ¡Rutina completa!`);
-  scheduleReminderSync();
 }
 
 const cur = () => state.routines.find(x => x.id === editId);
@@ -168,7 +166,6 @@ export const actions = {
   rtDone: () => {
     editId = null;
     update(() => {}); // guarda y respalda lo editado en silencio
-    scheduleReminderSync();
   },
   rtField: el => {
     const f = el.dataset.f;
@@ -207,6 +204,5 @@ export const actions = {
     if (!confirm(`¿Borrar la rutina "${cur().name}"?`)) return;
     update(s => { s.routines = s.routines.filter(x => x.id !== editId); });
     editId = null;
-    scheduleReminderSync();
   },
 };

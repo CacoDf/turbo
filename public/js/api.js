@@ -1,7 +1,7 @@
 // Comunicación con el servidor (Cloudflare Worker): IA, respaldo y notificaciones.
 // Todo es opcional: si no hay servidor configurado, la app funciona igual en el teléfono.
 import { state, replaceState, update } from './store.js';
-import { computeReminders } from './planner.js';
+import { pendientesHoy } from './planner.js';
 
 export const hasServer = () => !!state.settings.secret;
 
@@ -61,12 +61,24 @@ let applyingRemote = false;
 // recién instalado (vacío) nunca pisa un respaldo con datos.
 let checkedRemote = false;
 
+const pushBackup = () => call('state', { method: 'PUT', body: { updatedAt: state.meta.updatedAt, state } }).catch(e => console.warn('Respaldo falló', e));
+
 export function scheduleBackup() {
   if (!hasServer() || applyingRemote || !checkedRemote) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    call('state', { method: 'PUT', body: { updatedAt: state.meta.updatedAt, state } }).catch(e => console.warn('Respaldo falló', e));
+    pushTimer = null;
+    pushBackup();
   }, 4000);
+}
+
+// Al salir de la app (bloquear, cambiar de app) se sube altiro lo pendiente: de ese respaldo
+// el servidor calcula los avisos (p. ej. el fin de un foco recién partido).
+export function flushBackup() {
+  if (!pushTimer) return;
+  clearTimeout(pushTimer);
+  pushTimer = null;
+  pushBackup();
 }
 
 const isPristine = () => state.tasks.length === 0 && state.game.xp === 0;
@@ -92,14 +104,30 @@ export async function pullBackup() {
 
 // ---- Notificaciones ----
 
-let remTimer = null;
+// Los avisos los calcula el servidor desde el respaldo (src/avisos.js). La app solo le cuenta que se abrió:
+// así no insiste con un aviso ya visto y sabe cuándo ofrecer el "día mínimo".
+const VISTO = 'turbo.visto'; // fuera de turbo.v1: no cambia el formato de los datos
+let ultimoSeen = 0;
 
-export function scheduleReminderSync() {
-  if (!hasServer() || !state.settings.notif) return;
-  clearTimeout(remTimer);
-  remTimer = setTimeout(() => {
-    call('reminders', { method: 'PUT', body: { reminders: computeReminders() } }).catch(e => console.warn('Recordatorios fallaron', e));
-  }, 2500);
+// Marca la app como abierta ahora y devuelve cuándo se había abierto antes (o null si no se sabe).
+export function marcarVisto() {
+  let antes = null;
+  try {
+    antes = Number(localStorage.getItem(VISTO)) || null;
+    localStorage.setItem(VISTO, String(Date.now()));
+  } catch {}
+  if (hasServer() && Date.now() - ultimoSeen > 10 * 60000) {
+    ultimoSeen = Date.now();
+    call('seen', { method: 'POST' }).catch(e => console.warn('Aviso de apertura falló', e));
+  }
+  return antes;
+}
+
+// Número en el ícono: tareas pendientes para hoy (iOS lo muestra si hay permiso de notificaciones).
+export function actualizarBadge() {
+  if (!('setAppBadge' in navigator)) return;
+  const n = pendientesHoy();
+  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
 }
 
 const b64ToBytes = b64 => {
@@ -127,7 +155,7 @@ export async function enablePush() {
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key) });
   await call('push/subscribe', { method: 'POST', body: sub.toJSON() });
   update(s => { s.settings.notif = true; });
-  scheduleReminderSync();
+  actualizarBadge();
 }
 
 export async function testPush() {

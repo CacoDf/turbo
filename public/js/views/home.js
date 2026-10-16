@@ -11,6 +11,24 @@ import { needsCheckin, checkinCard } from './mood.js';
 import { weekFocusCard } from './review.js';
 
 let skipIds = [];
+let minimo = false;
+
+// Tras 3 días sin abrir (o desde el aviso del "día mínimo"): una sola cosa de 2 minutos, sin lista ni culpa.
+export function activarMinimo() {
+  minimo = true;
+  skipIds = [];
+}
+
+function minimoCard() {
+  const t = suggestTask(skipIds);
+  return `<section class="card now minimo">
+    <div class="label">VOLVISTE 👋</div>
+    <h2 class="task-title">Día mínimo: 2 minutos</h2>
+    <p class="muted">Una sola cosa chica y listo.${t ? ` Parte con <b>${esc(t.title)}</b>.` : ''}</p>
+    <button class="btn huge" data-act="homeMinimo" data-id="${t ? esc(t.id) : ''}">▶ 2 minutos</button>
+    <button class="link" data-act="homeMinimoNo">Hoy no</button>
+  </section>`;
+}
 
 // Evento de Google Calendar en curso (o que empieza en ≤15 min): se convierte en foco con un toque.
 function calendarNow() {
@@ -137,10 +155,10 @@ export function render() {
   </header>
   ${eventPill()}
   ${onboarding()}
-  ${state.focus ? '' : extraCard()}
+  ${state.focus ? '' : minimo ? minimoCard() : extraCard()}
   ${focusCard()}
-  ${state.focus ? '' : cal.html}
-  ${state.focus || cal.running ? '' : taskCard()}
+  ${state.focus || minimo ? '' : cal.html}
+  ${state.focus || minimo || cal.running ? '' : taskCard()}
   <section class="card compact" data-act="go" data-to="habitos">
     <div class="row between"><span>Hábitos hoy</span><b>${hb.done}/${hb.total}</b></div>
     ${bar(hb.total ? hb.done / hb.total : 0, 'var(--good)')}
@@ -164,6 +182,14 @@ export const actions = {
   homeOnboarded: () => update(s => { s.meta.onboarded = true; }),
   homeStart: el => startFocus(el.dataset.id, Number(el.dataset.min)),
   homeFree: () => startFocus(null, 5),
+  homeMinimo: el => {
+    minimo = false;
+    startFocus(el.dataset.id || null, 2);
+  },
+  homeMinimoNo: () => {
+    minimo = false;
+    rerender();
+  },
   homeCalFocus: el => startFocus(null, Number(el.dataset.min), el.dataset.title),
   homeRoutine: el => {
     startRoutine(el.dataset.id);

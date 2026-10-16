@@ -2,7 +2,7 @@
 import { state, update } from './store.js';
 import { award, XP, levelInfo } from './game.js';
 import { fallbackSteps } from './planner.js';
-import { hasServer, aiSteps, scheduleReminderSync } from './api.js';
+import { hasServer, aiSteps } from './api.js';
 import { uid, dayKey } from './util.js';
 import { toast, celebrate } from './ui.js';
 import { go } from './router.js';
@@ -35,7 +35,6 @@ export function addTasks(items) {
       });
     }
   });
-  scheduleReminderSync();
 }
 
 export const findTask = id => state.tasks.find(t => t.id === id);
@@ -82,7 +81,6 @@ export function completeTask(id) {
   });
   const xp = XP.taskBase + Math.min(40, Math.round((t.minutes || 25) / 5));
   reward(xp, 'task', `Terminaste: ${t.title}`);
-  scheduleReminderSync();
 }
 
 export function deleteTask(id) {
@@ -90,7 +88,6 @@ export function deleteTask(id) {
     s.tasks = s.tasks.filter(t => t.id !== id);
     if (s.currentTaskId === id) s.currentTaskId = null;
   });
-  scheduleReminderSync();
 }
 
 export function startFocus(taskId, minutes, label = null) {
@@ -99,7 +96,6 @@ export function startFocus(taskId, minutes, label = null) {
     if (taskId) s.currentTaskId = taskId;
   });
   reward(XP.focusStart, 'focus', 'Arrancaste 🚦');
-  scheduleReminderSync();
   go('foco');
 }
 
@@ -113,7 +109,6 @@ export function endFocus() {
     if (t) t.focusMs = (t.focusMs || 0) + worked;
     s.focus = null;
   });
-  scheduleReminderSync();
   return worked;
 }
 
@@ -124,5 +119,4 @@ export function extendFocus(minutes) {
     s.focus.endAt = base + minutes * 60000;
     s.focus.plannedMin += minutes;
   });
-  scheduleReminderSync();
 }

@@ -2,7 +2,7 @@
 import { state, update } from '../store.js';
 import { esc, uid, dayKey, addDays, parseDayKey, daysBetween } from '../util.js';
 import { bar, toast, celebrate } from '../ui.js';
-import { hasServer, aiGoalWeek, scheduleReminderSync } from '../api.js';
+import { hasServer, aiGoalWeek } from '../api.js';
 import { reward } from '../actions.js';
 import { rerender } from '../router.js';
 
@@ -60,7 +60,6 @@ export async function planGoalWeek(id, { quiet = false } = {}) {
     }));
     s.goals.find(x => x.id === id).weekPlanned = mondayKey();
   });
-  scheduleReminderSync();
   if (!quiet) toast(`${plan.length} pasos agregados para esta semana 🎯`);
   return plan.length;
 }

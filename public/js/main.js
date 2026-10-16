@@ -3,7 +3,7 @@ import { state, subscribe } from './store.js';
 import { checkStreak } from './game.js';
 import { closeSheet, unlockAudio } from './ui.js';
 import { setRenderer, route } from './router.js';
-import { pullBackup, scheduleBackup, scheduleReminderSync } from './api.js';
+import { pullBackup, scheduleBackup, flushBackup, marcarVisto, actualizarBadge } from './api.js';
 import { refreshExternal } from './calendar.js';
 import * as home from './views/home.js';
 import * as focus from './views/focus.js';
@@ -76,7 +76,18 @@ window.addEventListener('hashchange', () => {
 subscribe(() => {
   queueRender();
   scheduleBackup();
+  actualizarBadge();
 });
+
+// Al abrir o volver a la app: el servidor deja de insistir. Si pasaron 3 días (o se llegó desde el aviso
+// del "día mínimo"), Ahora ofrece 2 minutos en vez de la lista de siempre.
+const TRES_DIAS = 3 * 86400000;
+function alAbrir() {
+  const antes = marcarVisto();
+  const desdeAviso = new URLSearchParams(location.search).has('minimo');
+  if (desdeAviso) history.replaceState(null, '', location.pathname + location.hash);
+  if (desdeAviso || (antes && Date.now() - antes >= TRES_DIAS)) home.activarMinimo();
+}
 
 // Un solo manejador para todos los botones: data-act="nombreAccion".
 document.addEventListener('click', ev => {
@@ -94,24 +105,25 @@ document.addEventListener('change', ev => {
   if (el) ACTIONS[el.dataset.change]?.(el, ev);
 });
 
-// Al volver a la app (desde otra app o al desbloquear): revisar racha y refrescar.
+// Al volver a la app (desde otra app o al desbloquear): revisar racha y refrescar. Al salir: subir el respaldo.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
+  if (document.visibilityState !== 'visible') return flushBackup();
+  alAbrir();
   checkStreak();
   pullBackup();
   refreshExternal();
-  scheduleReminderSync();
   queueRender();
 });
 
 async function boot() {
+  alAbrir();
   checkStreak();
   render();
+  actualizarBadge();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW', e));
   }
   if (await pullBackup()) queueRender();
-  scheduleReminderSync();
   scheduleBackup();
   refreshExternal();
 }

@@ -4,7 +4,7 @@ import { state, update } from '../store.js';
 import { XP } from '../game.js';
 import { esc, uid, dayKey, addDays, parseDayKey, daysBetween, DAY_SHORT } from '../util.js';
 import { toast, openSheet, closeSheet } from '../ui.js';
-import { hasServer, aiStudyPlan, scheduleReminderSync } from '../api.js';
+import { hasServer, aiStudyPlan } from '../api.js';
 import { reward } from '../actions.js';
 import { rerender } from '../router.js';
 
@@ -126,7 +126,6 @@ export async function plan(examId) {
     s.exams.find(x => x.id === examId).planned = true;
   });
   reward(XP.studyPlan, 'study', `Planificaste: ${e.title}`);
-  scheduleReminderSync();
   toast(`${n} sesiones repartidas en ${Math.min(n, days.length)} ${days.length === 1 ? 'día' : 'días'}. Las verás en Ahora y Tareas.`);
 }
 
@@ -155,7 +154,6 @@ export const actions = {
     const id = uid();
     update(s => { s.exams.push({ id, courseId, kind, title, date, hours, planned: false, done: false }); });
     showForm = false;
-    scheduleReminderSync();
     openSheet(`<h2>¿Planificamos el estudio?</h2>
       <p>Turbo reparte ~${Math.ceil((hours * 60) / SESSION_MIN)} sesiones de ${SESSION_MIN} min entre hoy y el día anterior a la fecha.</p>
       <button class="btn" data-act="stPlanSheet" data-id="${id}">Sí, planificar</button>
@@ -177,6 +175,5 @@ export const actions = {
       s.exams = s.exams.filter(x => x.id !== el.dataset.id);
       s.tasks = s.tasks.filter(t => !(t.examId === el.dataset.id && !t.done));
     });
-    scheduleReminderSync();
   },
 };
