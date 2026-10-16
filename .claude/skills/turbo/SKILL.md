@@ -22,18 +22,18 @@ Lee `docs/PROGRESO.md`. Si no existe, créalo con la plantilla del final (todo p
 ```
 Dónde vamos: <fase o sesión> — <una línea de qué se logra>
 
-Antes de partir, haz tú esto:
-1. /rename <nombre>
-2. /model <modelo>
-3. /effort <nivel>
-4. <Shift+Tab hasta "plan mode on", o lo que corresponda>
+Antes de partir, haz tú esto (app Claude Desktop):
+1. Renombra la sesión: clic en su título arriba → <nombre>
+2. Modelo: menú junto al botón de enviar (Ctrl+Shift+I) → <modelo>
+3. Esfuerzo: Ctrl+Shift+E → <nivel>
+4. Modo: selector junto al botón de enviar (Ctrl+Shift+M) → <Plan, o lo que corresponda>
 
 Después, dime: "<la frase o el prompt de la fase>"
 
 Se cierra cuando: <criterio de la tabla>
 ```
 
-Tú no puedes cambiar el modelo ni abrir sesiones: él escribe los comandos. Si el modelo o esfuerzo con que estás corriendo no coincide con la tabla, díselo primero.
+Joaquín usa Claude Code en la app Claude Desktop (Windows), no en la terminal: habla siempre de menús y atajos de la app, nunca de Shift+Tab ni de comandos de terminal. `opusplan` en Desktop significa: Opus mientras está en modo Plan y, al aprobar el plan, cambiar el menú a Sonnet. Tú no puedes cambiar el modelo ni abrir sesiones: él lo hace en los menús. Si el modelo o esfuerzo con que estás corriendo no coincide con la tabla, díselo primero.
 
 ## 4. Tabla de sesiones
 
@@ -58,7 +58,7 @@ Recorre con él esta lista, una por una:
 3. `/code-review`.
 4. Commit y, si todo pasa, merge a `main` para que Cloudflare publique.
 5. Actualiza `docs/PROGRESO.md`: estado "cerrada", fecha de hoy y la fecha en que toca la siguiente (hoy + 7 días).
-6. Dile: "Listo. Ahora `/clear` y cierra Code. Úsala en tu iPhone hasta el <fecha>. Si se te ocurre algo, dímelo y lo anoto en IDEAS.md."
+6. Dile: "Listo. Cierra esta sesión (la siguiente la abres con + New session o Ctrl+N). Úsala en tu iPhone hasta el <fecha>. Si se te ocurre algo, dímelo y lo anoto en IDEAS.md."
 
 ## Plantilla de docs/PROGRESO.md
 

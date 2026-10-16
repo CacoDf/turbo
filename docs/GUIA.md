@@ -29,10 +29,10 @@ Regla simple: **piensa con Opus, construye con Sonnet, y sube el esfuerzo solo c
 
 ## La receta de cada sesión
 
-1. Abre la terminal en la carpeta del repo y escribe `claude` (o `claude --chrome`).
+1. Abre la terminal en la carpeta del repo y escribe `claude` (en Desktop: + New session, Local, carpeta turbo).
 2. El copiloto te saluda y te dice qué toca. Si no lo hace, escribe `/turbo`.
-3. `/rename fase-N`, `/model …`, `/effort …` según te diga.
-4. Shift+Tab hasta **⏸ plan mode on**. Claude lee y propone, sin tocar nada.
+3. Renombra la sesión y ajusta modelo y esfuerzo en los menús junto a enviar, según te diga.
+4. Selector de modo junto a enviar → **Plan**. Claude lee y propone, sin tocar nada.
 5. Pega el prompt de la fase (está en `docs/PLAN.md`). Responde corto si pregunta.
 6. Lee el plan (Ctrl+G para editarlo) y pregunta: "¿qué puede salir mal y cómo lo vas a probar?".
 7. Aprueba y déjalo trabajar. Si se desvía, Esc. Si lo corriges dos veces y sigue mal, `/clear` y pídelo mejor.
