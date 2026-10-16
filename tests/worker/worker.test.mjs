@@ -207,3 +207,14 @@ test('calendario enorme (años de historial) se procesa rápido', async () => {
   assert.ok(ms < 5000, `4.000 eventos en ${ms.toFixed(0)} ms`);
   assert.ok(j.events.filter(e => e.title === 'Semanal 0').length >= 15, 'eventos semanales antiguos siguen apareciendo');
 });
+
+test('cron: las consultas usan índice (no recorren la tabla entera)', async () => {
+  await w.json('GET', 'ping'); // asegura que el esquema existe
+  const db = await w.mf.getD1Database('DB');
+  const plan = async sql => (await db.prepare('EXPLAIN QUERY PLAN ' + sql).all()).results.map(r => r.detail).join(' | ');
+  const due = await plan('SELECT * FROM reminders WHERE sent = 0 AND at <= 1');
+  assert.match(due, /USING INDEX idx_reminders_due/, due);
+  assert.doesNotMatch(due, /SCAN reminders/, due);
+  const marcar = await plan("UPDATE reminders SET sent = 1 WHERE id = 'x'");
+  assert.match(marcar, /SEARCH reminders USING (INDEX|PRIMARY KEY|COVERING INDEX) \S+/, marcar);
+});

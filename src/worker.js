@@ -49,6 +49,8 @@ async function ensureSchema(env) {
     env.DB.prepare('CREATE TABLE IF NOT EXISTS subs (endpoint TEXT PRIMARY KEY, json TEXT NOT NULL, created INTEGER NOT NULL)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS reminders (id TEXT PRIMARY KEY, at INTEGER NOT NULL, title TEXT NOT NULL, body TEXT, sent INTEGER NOT NULL DEFAULT 0)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT NOT NULL, title TEXT NOT NULL, body TEXT, tag TEXT, created INTEGER NOT NULL)'),
+    // El cron corre cada minuto: sin este índice, "SELECT ... WHERE sent = 0 AND at <= ?" recorre toda la tabla 1.440 veces al día.
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders (sent, at)'),
   ]);
   schemaReady = true;
 }
