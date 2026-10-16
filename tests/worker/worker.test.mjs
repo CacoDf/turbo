@@ -66,6 +66,16 @@ test('IA: sin clave 503; con clave normaliza tareas, pasos, plan de estudio, sec
     assert.equal(j.tasks[1].minutes, 240);
     assert.equal(j.tasks[1].due, null);
 
+    // Con hora válida la IA devuelve un evento de una hora; con hora imposible sigue siendo tarea.
+    ia.geminiReply = { tasks: [
+      { title: 'Ir al dentista', area: 'casa', minutes: 30, due: '2026-10-22', start: '15:00' },
+      { title: 'Hora rara', area: 'casa', minutes: 30, due: '2026-10-22', start: '25:00' },
+    ] };
+    j = await ia.json('POST', 'ai/capture', { text: 'dentista jueves 15:00', today: 'hoy' });
+    assert.deepEqual(j.tasks[0], { kind: 'evento', title: 'Ir al dentista', date: '2026-10-22', start: '15:00', end: '16:00' });
+    assert.equal(j.tasks[1].kind, undefined);
+    assert.equal(j.tasks[1].due, '2026-10-22');
+
     ia.geminiReply = { steps: [{ text: 'Abrir el PDF', min: 1 }, { text: 'Leer la página 1', min: 5 }] };
     j = await ia.json('POST', 'ai/steps', { title: 'Estudiar', area: 'estudios', minutes: 30 });
     assert.equal(j.steps.length, 2);

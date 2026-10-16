@@ -64,3 +64,15 @@ test('desde Día se llega a Rutinas, Hábitos, Estudios y Revisión semanal', as
     await expect(page.locator('#nav a.on'), `pestaña marcada en ${ruta}`).toHaveText(/Día/);
   }
 });
+
+test('la barra de pestañas queda pegada abajo en Ahora, Día, Capturar y Foco, también viniendo de una pantalla larga', async ({ page, app }) => {
+  await app.abrir('dia');
+  await page.evaluate(() => window.scrollTo(0, 400));
+  for (const ruta of ['capturar', 'foco', 'ahora', 'dia']) {
+    await page.locator('#nav a', { hasText: new RegExp(ruta === 'dia' ? 'Día' : ruta, 'i') }).click();
+    await expect(page).toHaveURL(new RegExp(`#/${ruta}`));
+    const { abajo, alto, sy } = await page.evaluate(() => ({ abajo: document.getElementById('nav').getBoundingClientRect().bottom, alto: window.innerHeight, sy: window.scrollY }));
+    expect(Math.abs(abajo - alto), `${ruta}: la barra queda a ${abajo} de ${alto}`).toBeLessThanOrEqual(1);
+    if (ruta !== 'dia') expect(sy, `${ruta} parte arriba`).toBe(0);
+  }
+});

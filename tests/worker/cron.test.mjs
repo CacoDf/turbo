@@ -172,3 +172,24 @@ test('día mínimo: tras 3 días sin abrir, el aviso lleva a Ahora con el modo d
     assert.ok(j.prev <= r - 4 * 86400000 + 1000, 'seen devuelve la apertura anterior');
   } finally { await w.cerrar(); }
 });
+
+test('evento anotado en Turbo ("dentista" con hora): el cron avisa 15 min antes sin abrir la app', async () => {
+  const nav = await navegador('https://push.test/k-turbo');
+  const w = await servidorCon(nav);
+  try {
+    const r = Date.now();
+    const ev = chile(r + 60 * MIN);
+    const fin = chile(r + 120 * MIN);
+    if (fin.key !== ev.key) return; // cerca de medianoche el evento cruzaría de día: no aplica
+    await w.req('PUT', 'state', { updatedAt: r, state: estado(r, {
+      schedule: [{ id: 'dent', title: 'Dentista', kind: 'otro', days: [], date: ev.key, start: ev.hm, end: fin.hm, src: 'turbo' }],
+    }) });
+    await w.cron(r);
+    await w.cron(r + 46 * MIN);
+    const msgs = await Promise.all(w.pushes.map(p => descifrar(nav, p.body)));
+    const dentista = msgs.find(m => m.notification.title === '📌 Dentista en 15 min');
+    assert.ok(dentista, msgs.map(m => m.notification.title).join(', ') || 'sin avisos');
+    assert.equal(dentista.web_push, 8030, 'push declarativo');
+    assert.ok(dentista.notification.body.startsWith(`Parte a las ${ev.hm}.`), dentista.notification.body);
+  } finally { await w.cerrar(); }
+});

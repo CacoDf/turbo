@@ -81,3 +81,75 @@ test('Capturar no abre el teclado sola (en iPhone descuadra la barra de abajo)',
   await expect(page.locator('#capText')).toBeVisible();
   await expect(page.locator('#capText')).not.toBeFocused();
 });
+
+test('"dentista jueves 15:00" queda como evento y se ve en Día ese jueves', async ({ page, app }) => {
+  await app.abrir('capturar');
+  await page.locator('#capText').fill('dentista jueves 15:00');
+  await page.getByRole('button', { name: /Ordenar/ }).click();
+  await expect(page.locator('input[type=time]').first()).toHaveValue('15:00');
+  await page.screenshot({ path: 'tests/capturas/capturar-evento.png' });
+  await page.getByRole('button', { name: /Guardar 1 evento/ }).click();
+  await expect(page).toHaveURL(/#\/dia/);
+  const s = await app.guardado();
+  expect(s.schedule.filter(b => b.date)).toMatchObject([{ title: 'Dentista', date: '2026-10-22', start: '15:00', end: '16:00', src: 'turbo' }]);
+  await expect(page.locator('.block', { hasText: 'Dentista' })).toBeVisible();
+  await expect(page.locator('.block', { hasText: '15:00–16:00' })).toBeVisible();
+  await page.screenshot({ path: 'tests/capturas/dia-evento.png', fullPage: true });
+});
+
+test('mezcla: una tarea y un evento con tilde en el día ("miércoles")', async ({ page, app }) => {
+  await app.abrir('capturar');
+  await page.locator('#capText').fill('comprar pan\nreunión miércoles 10:30');
+  await page.getByRole('button', { name: /Ordenar/ }).click();
+  await page.getByRole('button', { name: /Guardar 1 evento y 1 tarea/ }).click();
+  const s = await app.guardado();
+  expect(s.tasks.some(t => t.title === 'Comprar pan')).toBe(true);
+  expect(s.schedule.filter(b => b.date)).toMatchObject([{ title: 'Reunión', date: '2026-10-21', start: '10:30' }]);
+});
+
+test('ponerle hora a una tarea la convierte en evento, y quitarla la devuelve a tarea', async ({ page, app }) => {
+  await app.abrir('capturar');
+  await page.locator('#capText').fill('llamar al banco mañana');
+  await page.getByRole('button', { name: /Ordenar/ }).click();
+  await page.locator('input[type=time]').first().fill('11:00');
+  await expect(page.getByRole('button', { name: /Guardar 1 evento/ })).toBeVisible();
+  await page.locator('input[type=time]').first().fill('');
+  await expect(page.getByRole('button', { name: /Guardar 1 tarea/ })).toBeVisible();
+});
+
+test('Día tiene el botón ↻ para actualizar el calendario', async ({ page, app }) => {
+  await app.abrir('dia');
+  await expect(page.getByRole('button', { name: 'Actualizar calendario' })).toBeVisible();
+  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await expect(page.getByText(/Conecta tu calendario/)).toBeVisible();
+});
+
+test('↻ en Día trae lo que se anotó en Google Calendar (también un evento nuevo) y se ve junto al de Turbo', async ({ page, app }) => {
+  let eventos = [{ title: 'Ayudantía Finanzas', date: '2026-10-20', allDay: false, start: '12:00', end: '13:00' }];
+  const pedidos = [];
+  await page.route('**/api/**', route => route.fulfill({ json: {} })); // lo demás del servidor (respaldo, avisos): sin respuesta útil
+  await page.route('**/api/calendar/import**', route => {
+    pedidos.push(route.request().url());
+    return route.fulfill({ json: { connected: true, events: eventos } });
+  });
+  await app.abrir('dia');
+  await page.evaluate(k => {
+    const s = JSON.parse(localStorage.getItem(k));
+    s.settings = { ...(s.settings || {}), secret: 'x' };
+    s.schedule = [...(s.schedule || []), { id: 'dent', title: 'Dentista', kind: 'otro', days: [], date: '2026-10-20', start: '15:00', end: '16:00', src: 'turbo' }];
+    localStorage.setItem(k, JSON.stringify(s));
+  }, KEY);
+  await page.reload();
+  await expect(page.locator('.block', { hasText: 'Dentista' })).toBeVisible();
+  // Día se desplaza solo hasta "ahora": el botón ↻ tiene que seguir a la vista.
+  await expect(page.getByRole('button', { name: 'Actualizar calendario' })).toBeInViewport();
+  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await expect(page.locator('.block', { hasText: 'Ayudantía Finanzas' })).toBeVisible();
+  await expect(page.locator('.block', { hasText: 'Dentista' })).toBeVisible();
+  // Alguien agrega algo en Google: con ↻ aparece sin esperar.
+  eventos = [...eventos, { title: 'Cine con Caro', date: '2026-10-20', allDay: false, start: '20:00', end: '22:00' }];
+  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await expect(page.locator('.block', { hasText: 'Cine con Caro' })).toBeVisible();
+  expect(pedidos.some(u => /force=1/.test(u)), 'el botón fuerza la lectura').toBe(true);
+  await page.screenshot({ path: 'tests/capturas/dia-google-y-turbo.png' });
+});

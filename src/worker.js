@@ -267,6 +267,8 @@ async function gemini(env, system, prompt, schema) {
 
 const PERSONA = 'Eres el asistente de Turbo, una app para una persona con TDAH: estudiante universitario en Chile que entrena en el gimnasio. Entiendes modismos chilenos (pega = trabajo, ramo = asignatura, prueba/control/certamen = evaluación, polola = novia). Respondes siempre en español de Chile, simple y directo.';
 
+const hoyChile = () => { const n = santiagoParts(); return keyOf(dayNum(n.y, n.m, n.d)); };
+
 async function aiCapture(env, text, today) {
   if (!text?.trim()) return [];
   const system = `${PERSONA}
@@ -276,7 +278,8 @@ Reglas:
 - "title": corto, empieza con un verbo en infinitivo, sin la fecha (ej. "Estudiar para la prueba de Finanzas").
 - "area": una de ${AREAS.join(', ')}.
 - "minutes": estimación realista entre 5 y 240. Sé generoso: las personas con TDAH tienden a subestimar.
-- "due": fecha YYYY-MM-DD si el texto menciona un día o fecha ("viernes", "mañana", "el 3"), calculada desde hoy; si no, null.`;
+- "due": fecha YYYY-MM-DD si el texto menciona un día o fecha ("viernes", "mañana", "el 3"), calculada desde hoy; si no, null.
+- "start": hora HH:MM (24 h) si el texto dice a qué hora es ("a las 15", "15:00", "3pm"); si no, null. Con hora es un evento (cita, reunión, clase): el título no lleva ni la fecha ni la hora (ej. "Ir al dentista").`;
   const schema = {
     type: 'OBJECT',
     properties: {
@@ -289,6 +292,7 @@ Reglas:
             area: { type: 'STRING', enum: AREAS },
             minutes: { type: 'INTEGER' },
             due: { type: 'STRING', nullable: true },
+            start: { type: 'STRING', nullable: true },
           },
           required: ['title', 'area', 'minutes'],
         },
@@ -297,12 +301,23 @@ Reglas:
     required: ['tasks'],
   };
   const out = await gemini(env, system, `Hoy es: ${today}\n\nTexto:\n${text.slice(0, 4000)}`, schema);
-  return (out.tasks || []).slice(0, 30).map(t => ({
-    title: String(t.title).slice(0, 140),
-    area: AREAS.includes(t.area) ? t.area : 'personal',
-    minutes: Math.min(240, Math.max(5, Math.round(Number(t.minutes) / 5) * 5 || 25)),
-    due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
-  }));
+  return (out.tasks || []).slice(0, 30).map(t => {
+    const title = String(t.title).slice(0, 140);
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null;
+    const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(t.start || '');
+    if (m) {
+      // Con hora es un evento de una hora; sin fecha, hoy.
+      const start = `${m[1].padStart(2, '0')}:${m[2]}`;
+      const fin = Math.min(23 * 60 + 59, Number(m[1]) * 60 + Number(m[2]) + 60);
+      return { kind: 'evento', title, date: due || hoyChile(), start, end: `${pad(Math.floor(fin / 60))}:${pad(fin % 60)}` };
+    }
+    return {
+      title,
+      area: AREAS.includes(t.area) ? t.area : 'personal',
+      minutes: Math.min(240, Math.max(5, Math.round(Number(t.minutes) / 5) * 5 || 25)),
+      due,
+    };
+  });
 }
 
 async function aiSteps(env, { title, area, minutes }) {

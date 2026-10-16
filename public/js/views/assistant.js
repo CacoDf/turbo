@@ -2,7 +2,7 @@
 // Cada respuesta propone acciones que se guardan con un toque. Nunca ve el Escudo ni tu plata.
 import { state, update } from '../store.js';
 import { XP } from '../game.js';
-import { esc, uid, dayKey, addDays, parseDayKey, DAY_NAMES, DAY_SHORT } from '../util.js';
+import { esc, uid, dayKey, addDays, parseDayKey, DAY_NAMES, DAY_SHORT, validDate, validHm, defaultEnd } from '../util.js';
 import { toast } from '../ui.js';
 import { hasServer, aiAssistant } from '../api.js';
 import { AREAS, blocksFor, openTasks } from '../planner.js';
@@ -64,8 +64,6 @@ function describe(a) {
 
 // Aplica una acción al estado. Devuelve false si no se pudo (ej. hábito que no existe).
 async function apply(a) {
-  const validDate = x => (/^\d{4}-\d{2}-\d{2}$/.test(x || '') ? x : null);
-  const validHm = x => (/^\d{1,2}:\d{2}$/.test(x || '') ? x.padStart(5, '0') : null);
   switch (a.type) {
     case 'add_task':
       if (!a.title) return false;
@@ -81,10 +79,7 @@ async function apply(a) {
       const start = validHm(a.start);
       if (!a.title || !start) return false;
       let end = validHm(a.end);
-      if (!end || end <= start) {
-        const [h, m] = start.split(':').map(Number);
-        end = `${String(Math.min(23, h + 1)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      }
+      if (!end || end <= start) end = defaultEnd(start);
       const date = validDate(a.date);
       const days = (a.days || []).filter(d => d >= 0 && d <= 6);
       if (!date && !days.length) return false;

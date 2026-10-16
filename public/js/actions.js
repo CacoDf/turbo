@@ -3,7 +3,7 @@ import { state, update } from './store.js';
 import { award, XP, levelInfo } from './game.js';
 import { fallbackSteps } from './planner.js';
 import { hasServer, aiSteps } from './api.js';
-import { uid, dayKey } from './util.js';
+import { uid, dayKey, validDate, validHm, defaultEnd } from './util.js';
 import { toast, celebrate } from './ui.js';
 import { go } from './router.js';
 
@@ -35,6 +35,23 @@ export function addTasks(items) {
       });
     }
   });
+}
+
+// Eventos con hora: viven en el horario como los de una sola vez (src 'turbo' = nacieron aquí).
+export function addEvents(items) {
+  const ok = [];
+  update(s => {
+    for (const it of items) {
+      const date = validDate(it.date);
+      const start = validHm(it.start);
+      if (!date || !start) continue;
+      let end = validHm(it.end);
+      if (!end || end <= start) end = defaultEnd(start);
+      s.schedule.push({ id: uid(), title: it.title, kind: 'otro', days: [], date, start, end, src: 'turbo' });
+      ok.push(date);
+    }
+  });
+  return ok;
 }
 
 export const findTask = id => state.tasks.find(t => t.id === id);

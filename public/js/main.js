@@ -46,11 +46,12 @@ function render() {
   const view = VIEWS[r];
   unmount?.();
   unmount = null;
-  root.innerHTML = view.render();
+  // Al cambiar de pestaña, primero arriba y recién después el contenido nuevo: así una pantalla corta no hereda el scroll de una larga.
   if (r !== lastRoute) {
     window.scrollTo(0, 0);
     lastRoute = r;
   }
+  root.innerHTML = view.render();
   nav.hidden = r === 'foco' && !!state.focus; // con una sesión en curso, la barra se esconde; sin sesión, Foco es una pestaña normal
   const tab = TAB_OF[r] || r;
   nav.innerHTML = NAV.map(([id, icon, label]) => `<a href="#/${id}" class="${id === tab ? 'on' : ''}"><span>${icon}</span>${label}</a>`).join('');

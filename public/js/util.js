@@ -42,6 +42,14 @@ export function minToHm(min) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+export const validDate = x => (/^\d{4}-\d{2}-\d{2}$/.test(x || '') ? x : null);
+export const validHm = x => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(x || '');
+  return m && Number(m[1]) < 24 && Number(m[2]) < 60 ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
+};
+// Fin por defecto de un evento: una hora después del inicio (sin pasar de las 23:59).
+export const defaultEnd = start => minToHm(Math.min(23 * 60 + 59, hmToMin(start) + 60));
+
 export function atTime(date, hm) {
   const d = new Date(date);
   const m = hmToMin(hm);

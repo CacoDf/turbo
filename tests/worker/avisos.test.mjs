@@ -176,3 +176,11 @@ test('cambio de horario en Chile: la hora de pared se respeta', () => {
   assert.equal(r.find(x => x.id === 'manana-2026-09-05').at, Date.UTC(2026, 8, 5, 13, 0), '09:00 UTC-4');
   assert.equal(r.find(x => x.id === 'manana-2026-09-06').at, Date.UTC(2026, 8, 6, 12, 0), '09:00 UTC-3');
 });
+
+test('un evento anotado en Turbo (una vez, con fecha) avisa 15 min antes igual que uno de Google', () => {
+  const r = plan({ schedule: [{ id: 'dent', title: 'Dentista', kind: 'otro', days: [], date: '2026-10-22', start: '15:00', end: '16:00', src: 'turbo' }] }, { ahora: a(MAR + 1, '20:00') });
+  const d = r.find(x => x.id === 'blk-dent-2026-10-22');
+  assert.ok(d, 'el evento de Turbo genera su aviso');
+  assert.equal(hora(d.at), '14:45');
+  assert.equal(d.title, '📌 Dentista en 15 min');
+});

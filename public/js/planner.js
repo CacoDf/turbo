@@ -1,6 +1,6 @@
 // Planificación: bloques del horario, "¿qué hago ahora?", lectura de notas sin IA y recordatorios.
 import { state } from './store.js';
-import { dayKey, addDays, atTime, daysBetween, uid } from './util.js';
+import { dayKey, addDays, atTime, daysBetween, uid, defaultEnd, validHm } from './util.js';
 
 export const AREAS = {
   estudios: { label: 'Estudios', emoji: '📚' },
@@ -100,20 +100,23 @@ const AREA_WORDS = [
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles|miercoles', 'jueves', 'viernes', 'sábado|sabado'];
 
+// Borde de palabra que entiende tildes (\b de JS solo conoce ASCII).
+const word = re => new RegExp(`(?<![\\p{L}\\d])(?:${re})(?![\\p{L}\\d])`, 'u');
+
 function detectDue(text) {
   const t = text.toLowerCase();
   const today = new Date();
-  if (/pasado mañana/.test(t)) return dayKey(addDays(today, 2));
-  if (/\bmañana\b/.test(t)) return dayKey(addDays(today, 1));
-  if (/\bhoy\b|ahora|urgente/.test(t)) return dayKey(today);
+  if (word('pasado mañana').test(t)) return dayKey(addDays(today, 2));
+  if (word('mañana').test(t)) return dayKey(addDays(today, 1));
+  if (word('hoy|ahora|urgente').test(t)) return dayKey(today);
   for (let i = 0; i < 7; i++) {
-    if (new RegExp(`\\b(${WEEKDAYS[i]})\\b`).test(t)) {
+    if (word(WEEKDAYS[i]).test(t)) {
       let diff = (i - today.getDay() + 7) % 7;
       if (diff === 0) diff = 7;
       return dayKey(addDays(today, diff));
     }
   }
-  const m = t.match(/\b(\d{1,2})[/-](\d{1,2})\b/);
+  const m = t.match(/(?<!\d)(\d{1,2})[/-](\d{1,2})(?!\d)/);
   if (m) {
     const d = new Date(today.getFullYear(), Number(m[2]) - 1, Number(m[1]));
     if (d < addDays(today, -1)) d.setFullYear(d.getFullYear() + 1);
@@ -122,24 +125,66 @@ function detectDue(text) {
   return null;
 }
 
+// Hora del día escrita en el texto: "15:00", "15.30", "a las 15", "15h", "15 hrs", "3pm". Devuelve { hm, found } o null.
+const TIME_RES = [
+  /(?<![\d:])([01]?\d|2[0-3])\s*[:.]\s*([0-5]\d)\s*(am|pm)?(?!\d)/i,
+  /(?<![\d:])(1[0-2]|0?[1-9])\s*(am|pm)(?![\p{L}])/iu,
+  /\ba\s+las?\s+([01]?\d|2[0-3])(?![\d:.])(\s*(?:h|hrs?|horas?))?/i,
+  /(?<![\d:.])([01]?\d|2[0-3])\s*(?:h|hrs?)(?![\p{L}\d])/iu,
+];
+
+export function detectTime(text) {
+  for (const re of TIME_RES) {
+    const m = text.match(re);
+    if (!m) continue;
+    let h = Number(m[1]);
+    let min = /^\d{2}$/.test(m[2] || '') ? Number(m[2]) : 0;
+    const ap = (m.find((x, i) => i > 1 && /^(am|pm)$/i.test(x || '')) || '').toLowerCase();
+    if (ap === 'pm' && h < 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    const hm = validHm(`${h}:${String(min).padStart(2, '0')}`);
+    if (hm) return { hm, found: m[0] };
+  }
+  return null;
+}
+
 function detectMinutes(text) {
-  const m = text.match(/(\d+)\s*(min|m\b|h|hr|hora)/i);
+  const m = text.replace(TIME_RES[0], ' ').replace(TIME_RES[3], ' ').match(/(\d+)\s*(min|m\b|h|hr|hora)/i);
   if (!m) return 25;
   const n = Number(m[1]);
   return /h/i.test(m[2]) ? n * 60 : n;
 }
 
+// Saca del título la hora y las palabras de día ya leídas ("dentista jueves 15:00" → "Dentista").
+function cleanTitle(line, found, hasDate) {
+  let t = line.replace(found, ' ');
+  if (hasDate) t = t.replace(word('pasado mañana|mañana|hoy|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo'), ' ').replace(/(?<!\d)\d{1,2}[/-]\d{1,2}(?!\d)/, ' ');
+  t = t.replace(/\b(?:el|a la|a las|para el|este)\s*$/i, '').replace(/\s+/g, ' ').trim();
+  return (t || line).charAt(0).toUpperCase() + (t || line).slice(1);
+}
+
 export function localParse(text) {
   return text
     .split(/\n|;|•|(?:^|\s)-\s/)
-    .map(s => s.trim().replace(/^[\d.)\-*\s]+/, ''))
+    .map(s => s.trim().replace(/^[-*•)\s]+|^\d+[.)]\s+/, ''))
     .filter(s => s.length > 2)
-    .map(line => ({
-      title: line.charAt(0).toUpperCase() + line.slice(1),
-      area: (AREA_WORDS.find(([, re]) => re.test(line)) || ['personal'])[0],
-      minutes: detectMinutes(line),
-      due: detectDue(line),
-    }));
+    .map(line => {
+      const time = detectTime(line);
+      const due = detectDue(line);
+      if (time) {
+        // Con hora es un evento: sin fecha, hoy (o mañana si la hora ya pasó).
+        const now = new Date();
+        const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const date = due || dayKey(time.hm > nowHm ? now : addDays(now, 1));
+        return { kind: 'evento', title: cleanTitle(line, time.found, !!due), date, start: time.hm, end: defaultEnd(time.hm) };
+      }
+      return {
+        title: line.charAt(0).toUpperCase() + line.slice(1),
+        area: (AREA_WORDS.find(([, re]) => re.test(line)) || ['personal'])[0],
+        minutes: detectMinutes(line),
+        due,
+      };
+    });
 }
 
 export function fallbackSteps(task) {

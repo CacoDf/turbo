@@ -1,12 +1,20 @@
 // Tu día en una línea: horario fijo, la hora actual y cuánto falta para lo siguiente.
 import { state, update } from '../store.js';
 import { blocksFor, allDayFor, KINDS, AREAS, nowAndNext } from '../planner.js';
-import { esc, addDays, dayKey, parseDayKey, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
+import { esc, addDays, dayKey, parseDayKey, daysBetween, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
+import { refreshExternal } from '../calendar.js';
 import { toast } from '../ui.js';
 import { rerender } from '../router.js';
 
 let offset = 0;
 let editing = false;
+let refreshing = false;
+
+// Abre Día en una fecha concreta (YYYY-MM-DD), dentro del rango que se puede navegar.
+export function setDayOffset(key) {
+  offset = Math.max(-7, Math.min(14, daysBetween(dayKey(), key)));
+  editing = false;
+}
 const START = 7 * 60;
 const END = 24 * 60;
 const PX = 0.9; // píxeles por minuto
@@ -61,7 +69,9 @@ export function render() {
   const hasTraining = state.schedule.some(b => b.kind === 'entreno');
   const status = current ? `Ahora: ${esc(current.title)} (termina en ${fmtDuration((current.endAt - Date.now()) / 60000)})`
     : next ? `Lo siguiente: ${esc(next.title)} en ${fmtDuration((next.startAt - Date.now()) / 60000)}` : 'Sin bloques próximos';
-  return `<header class="top"><h1>Día</h1><button class="btn ghost small" data-act="dayEdit">${editing ? 'Listo' : 'Editar horario'}</button></header>
+  return `<header class="top sticky"><h1>Día</h1><div class="row">
+      <button class="icon-btn" data-act="dayRefresh" aria-label="Actualizar calendario" ${refreshing ? 'disabled' : ''}>${refreshing ? '…' : '↻'}</button>
+      <button class="btn ghost small" data-act="dayEdit">${editing ? 'Listo' : 'Editar horario'}</button></div></header>
     ${editing ? editor() : `
     <div class="row between day-nav">
       <button class="icon-btn" data-act="dayShift" data-d="-1" aria-label="Día anterior">‹</button>
@@ -91,6 +101,15 @@ export function mount() {
 export const actions = {
   dayShift: el => {
     offset = Math.max(-7, Math.min(14, offset + Number(el.dataset.d)));
+    rerender();
+  },
+  dayRefresh: async () => {
+    if (refreshing) return;
+    refreshing = true;
+    rerender();
+    const r = await refreshExternal(true);
+    refreshing = false;
+    toast(!r ? 'Conecta tu calendario en Ajustes' : r.ok ? 'Calendario al día' : `No pude actualizar: ${r.error}`);
     rerender();
   },
   dayEdit: () => {
