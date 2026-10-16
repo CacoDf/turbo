@@ -75,3 +75,9 @@ test('los datos de módulos congelados siguen intactos después de usar la app',
   for (const [clave, valor] of Object.entries(congelados)) expect(s[clave], clave).toEqual(valor);
   expect(Object.values(s.habitLog).some(d => Object.keys(d).length)).toBe(true);
 });
+
+test('Capturar no abre el teclado sola (en iPhone descuadra la barra de abajo)', async ({ page, app }) => {
+  await app.abrir('capturar');
+  await expect(page.locator('#capText')).toBeVisible();
+  await expect(page.locator('#capText')).not.toBeFocused();
+});

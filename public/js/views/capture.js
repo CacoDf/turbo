@@ -48,7 +48,7 @@ export function mount() {
   const ta = document.getElementById('capText');
   if (!ta) return;
   ta.addEventListener('input', () => (draft = ta.value));
-  if (!draft) ta.focus();
+  // Sin ta.focus(): en iPhone abrir el teclado solo descuadra la barra de pestañas.
 }
 
 export const actions = {
