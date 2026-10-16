@@ -255,6 +255,10 @@ Lo que quedó hecho en la Sesión 3 (entrevista del 16-10-2026):
 Sesión 4 de @docs/PLAN.md. Entrevístame primero (¿solo 3 tareas por día?, ¿ritual de 30 segundos?). Agrega el ritual antes del foco, "puedes parar" al terminar, aprender cuánto subestimo el tiempo (estimado contra real) y que Ahora proponga UNA tarea que cabe en el hueco según mi energía y contexto. Suma el Atajo "Partir 5 min".
 ```
 
+Ideas de Joaquín para esta sesión (16-10-2026), para conversarlas en la entrevista:
+- Opción de un timer de 10 minutos de mirar a la pared (descanso sin pantalla), junto al ritual.
+- El foco estándar se queda como está (25–30 min), pero que pueda elegir más tiempo con un toque, como las alarmas del celular, para los días con más energía.
+
 ### Sesión 5: hábitos y juego
 
 `opusplan` · `medium`, modo plan.
@@ -267,13 +271,15 @@ Rachas semanales, "saltar hoy" y reparar racha, XP por partir, bonus sorpresa y 
 
 Las pruebas se detectan en el calendario, la IA reparte sesiones hacia atrás y se crean como eventos en Google Calendar. Probar primero con datos de prueba.
 
+Idea de Joaquín (16-10-2026): antes de repartir las sesiones, que Turbo le pregunte cosas cortas sobre la prueba (¿estudias en grupo?, ¿qué materia te cuesta más?) y que él pueda responder escribiendo, para decidir bien cómo repartirlas.
+
 Acordado en la Sesión 3 (16-10-2026): las palabras que marcan una evaluación en Google son **Interrogación, Prueba, Certamen, Control, Examen y Entrega**. Las sesiones de estudio se crean con el puente que ya existe (`paraGoogle` en `src/puente.js`), en los huecos de `public/js/huecos.js`.
 
 ### Sesión 7: look con impeccable
 
 `opus` · `medium`.
 
-Una sola sesión de diseño, al final: `init`, `critique`, `audit`, `layout`/`typeset`/`colorize`, `adapt`, `harden` y `polish`; al final `delight` y `animate` con moderación. Contexto: app para TDAH, iPhone, una mano, 3 minutos libres, sin culpa. Joaquín quiere descubrir la identidad con vistas previas, como hizo con VANDAL en split4dias: primero una página aparte con 3 direcciones, él elige una y recién entonces se aplica a la app. Sus molestias con el look actual: se siente genérico ("AI slop") y recarga de cosas escondidas.
+Se hace con la skill **impeccable** (Joaquín lo pidió explícitamente: que no se olvide). Una sola sesión de diseño, al final: `init`, `critique`, `audit`, `layout`/`typeset`/`colorize`, `adapt`, `harden` y `polish`; al final `delight` y `animate` con moderación. Contexto: app para TDAH, iPhone, una mano, 3 minutos libres, sin culpa. Joaquín quiere descubrir la identidad con vistas previas, como hizo con VANDAL en split4dias: primero una página aparte con 3 direcciones, él elige una y recién entonces se aplica a la app. Sus molestias con el look actual: se siente genérico ("AI slop") y recarga de cosas escondidas.
 
 ## Reglas anti-abandono
 
