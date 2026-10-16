@@ -44,7 +44,8 @@ var hora = function (d) { return Utilities.formatDate(d, ZONA, 'HH:mm'); };
 function listar(desde, hasta) {
   var ini = fecha(desde), fin = fecha(hasta), out = [];
   CalendarApp.getAllCalendars().forEach(function (cal) {
-    if (cal.isHidden() || !cal.isSelected()) return;
+    // El calendario Turbo se lee siempre (aunque lo ocultes): si no, Turbo creería que borraste todo.
+    if (cal.getName() !== NOMBRE && (cal.isHidden() || !cal.isSelected())) return;
     if (/#holiday@/.test(cal.getId()) || cal.getName() === FEED_VIEJO) return;
     cal.getEvents(ini, fin).forEach(function (ev) {
       try { if (ev.getMyStatus() === CalendarApp.GuestStatus.NO) return; } catch (err) {}

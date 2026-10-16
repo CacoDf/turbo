@@ -6,11 +6,14 @@
 // - /api/seen       la app avisa que se abrió (cancela insistencias y apaga el "día mínimo").
 // - /api/puente/*   puente con Google Calendar vía Apps Script (src/puente.js): lee todos tus calendarios
 //                    y crea en Google lo que anotas con hora en Turbo.
+// - /api/shortcut/anotar  Atajo de iOS "Anotar en Turbo": anota sin abrir la app (queda en la bandeja).
+// - /api/bandeja    la app recoge lo anotado con el Atajo.
 // - cron cada minuto: calcula los avisos desde el respaldo y el calendario (src/avisos.js) y manda los que tocan.
 //
 // Variables en Cloudflare: APP_SECRET (obligatoria), GEMINI_API_KEY (para IA), GEMINI_MODEL (opcional).
 
 import { planAvisos } from './avisos.js';
+import { conBandeja, mensaje, MAX_BANDEJA } from './bandeja.js';
 import { rango, normalizar, paraGoogle, anotarEscritura, reconciliar, aplicarCambios, huella } from './puente.js';
 import { cifrar, mensajeDeclarativo, tieneClaves } from './push.js';
 import { TZ, pad, santiagoParts, dayNum, fromDayNum, keyOf, keyToNum } from './tiempo.js';
@@ -204,6 +207,36 @@ async function api(request, env, url, ctx) {
       await kvSet(env, 'importIcs', u);
       await kvSet(env, 'importCache', { url: u, t: Date.now(), events });
       return json({ ok: true, events });
+    }
+
+    case 'POST shortcut/anotar': {
+      const texto = String(body?.texto ?? body?.text ?? '').trim().slice(0, 2000);
+      if (!texto) return json({ mensaje: 'No escuché nada. Prueba de nuevo.' });
+      let items = null; // sin IA (o si falla), la app lo ordena con localParse al abrirse
+      if (env.GEMINI_API_KEY) {
+        try {
+          const n = santiagoParts();
+          items = (await aiCapture(env, texto, `${keyOf(dayNum(n.y, n.m, n.d))} ${pad(n.hh)}:${pad(n.mm)} (Chile)`)).map(i => ({ ...i, id: `at${hex(6)}` }));
+        } catch (e) {
+          console.warn('Atajo: IA', e.message);
+        }
+      }
+      const bandeja = (await kvGet(env, 'bandeja')) || [];
+      bandeja.push({ id: `b${hex(6)}`, t: Date.now(), texto, items });
+      await kvSet(env, 'bandeja', bandeja.slice(-MAX_BANDEJA));
+      if (items?.some(i => i.kind === 'evento')) ctx?.waitUntil(sincronizar(env, Date.now(), { leer: false }).catch(e => console.warn('Puente (Atajo)', e.message)));
+      return json({ ok: true, mensaje: mensaje(items) });
+    }
+
+    case 'GET bandeja':
+      return json({ items: (await kvGet(env, 'bandeja')) || [] });
+
+    case 'POST bandeja/listo': {
+      // La app ya lo recogió: se saca de la bandeja.
+      const listos = new Set(body?.ids || []);
+      const bandeja = ((await kvGet(env, 'bandeja')) || []).filter(e => !listos.has(e.id));
+      await (bandeja.length ? kvSet(env, 'bandeja', bandeja) : env.DB.prepare("DELETE FROM kv WHERE k = 'bandeja'").run());
+      return json({ ok: true });
     }
 
     case 'PUT puente/url': {
@@ -458,7 +491,7 @@ async function notifyAll(env, messages) {
 
 // Cada minuto. Lecturas baratas: 5 filas de kv por clave primaria + los avisos que tocan, por índice.
 async function cronAvisos(env, now) {
-  const { results } = await env.DB.prepare("SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan', 'puenteUrl', 'puenteVisto')").all();
+  const { results } = await env.DB.prepare("SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan', 'puenteUrl', 'puenteVisto', 'bandeja')").all();
   const v = Object.fromEntries(results.map(r => [r.k, r.updated]));
   const conCalendario = !!(v.puenteUrl || v.importIcs);
 
@@ -473,7 +506,7 @@ async function cronAvisos(env, now) {
     // 2. Replanifica si cambió algo (estado, calendario, la hora de la última apertura) o cada 3 horas.
     //    La apertura entra por hora: abrir la app seguido no recalcula todo cada vez.
     const plan = v.plan && !leerCalendario ? await kvGet(env, 'plan') : null;
-    const firma = `${v.state || 0}|${conCalendario ? v.importCache || 0 : 0}|${Math.floor((v.lastSeen || 0) / 3600000)}`;
+    const firma = `${v.state || 0}|${v.bandeja || 0}|${conCalendario ? v.importCache || 0 : 0}|${Math.floor((v.lastSeen || 0) / 3600000)}`;
     if (v.state && !leerCalendario && (!plan || plan.firma !== firma || now - plan.t > 3 * 3600000)) {
       await replanificar(env, now, { visto: v.lastSeen || null, conCalendario });
       await kvSet(env, 'plan', { t: now, firma });
@@ -494,7 +527,7 @@ async function cronAvisos(env, now) {
 async function replanificar(env, now, { visto, conCalendario }) {
   const cache = conCalendario ? await kvGet(env, 'importCache') : null;
   // Lo que se movió o borró en Google ya cuenta para los avisos, aunque la app no se haya abierto.
-  const state = aplicarCambios((await kvGet(env, 'state'))?.state || {}, cache?.cambios || []);
+  const state = aplicarCambios(conBandeja((await kvGet(env, 'state'))?.state || {}, await kvGet(env, 'bandeja')), cache?.cambios || []);
   const avisos = planAvisos({ state, eventos: cache?.events || [], visto, ahora: now });
   await env.DB.batch([
     env.DB.prepare('DELETE FROM avisos WHERE sent = 0'),
@@ -543,9 +576,9 @@ async function leerCache(env) {
 
 // Lee Google (si leer) y crea o borra allá lo que corresponde. Solo escribe en D1 lo que cambió.
 async function sincronizar(env, now, { leer = true } = {}) {
-  const [u, token, guardado, mapa0] = await Promise.all(['puenteUrl', 'puenteToken', 'state', 'puente'].map(k => kvGet(env, k)));
+  const [u, token, guardado, mapa0, bandeja] = await Promise.all(['puenteUrl', 'puenteToken', 'state', 'puente', 'bandeja'].map(k => kvGet(env, k)));
   if (!u || !token) return { events: [], cambios: [], error: null };
-  const state = guardado?.state || {};
+  const state = conBandeja(guardado?.state || {}, bandeja); // lo del Atajo sale en Google aunque la app no se haya abierto
   const hoy = hoyChile();
   let mapa = mapa0 || {};
   let lectura = null;

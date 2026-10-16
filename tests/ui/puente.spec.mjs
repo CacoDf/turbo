@@ -71,3 +71,23 @@ test('borrar en Turbo un evento con fecha lo deja anotado para borrarlo también
   expect(s.schedule.some(b => b.id === 'cafe')).toBe(false);
   expect(s.calBorrados).toEqual(['cafe']);
 });
+
+test('al abrir, la app recoge lo anotado con el Atajo (con IA y sin IA) y avisa al servidor', async ({ page, app }) => {
+  const listos = [];
+  let bandeja = [
+    { id: 'b1', texto: 'dentista jueves 15', items: [{ id: 'at1', kind: 'evento', title: 'Ir al dentista', date: '2026-10-22', start: '15:00', end: '16:00' }] },
+    { id: 'b2', texto: 'comprar pan', items: null },
+  ];
+  await page.route('**/api/**', route => route.fulfill({ json: {} }));
+  await page.route('**/api/bandeja', route => route.fulfill({ json: { items: bandeja } }));
+  await page.route('**/api/bandeja/listo', route => { listos.push(...route.request().postDataJSON().ids); bandeja = []; return route.fulfill({ json: { ok: true } }); });
+  await conServidor(page, app);
+  await expect(page.getByText('📥 Del Atajo: 2 cosas anotadas')).toBeVisible();
+  const s = await app.guardado();
+  expect(s.schedule.filter(b => b.id === 'at1')).toHaveLength(1);
+  expect(s.tasks.some(t => /comprar pan/i.test(t.title))).toBe(true);
+  expect(listos).toEqual(['b1', 'b2']);
+  await page.reload();
+  await expect(page.locator('#app')).not.toBeEmpty();
+  expect((await app.guardado()).schedule.filter(b => b.id === 'at1')).toHaveLength(1);
+});

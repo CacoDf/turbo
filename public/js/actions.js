@@ -17,11 +17,13 @@ export function reward(xp, type, text) {
   return r;
 }
 
+// Los ids que vienen de afuera (bandeja del Atajo) se conservan; si ya existe, no se repite.
 export function addTasks(items) {
   update(s => {
     for (const it of items) {
+      if (it.id && s.tasks.some(t => t.id === it.id)) continue;
       s.tasks.push({
-        id: uid(),
+        id: it.id || uid(),
         title: it.title,
         area: it.area || 'personal',
         minutes: Number(it.minutes) || 25,
@@ -44,10 +46,10 @@ export function addEvents(items) {
     for (const it of items) {
       const date = validDate(it.date);
       const start = validHm(it.start);
-      if (!date || !start) continue;
+      if (!date || !start || (it.id && s.schedule.some(b => b.id === it.id))) continue;
       let end = validHm(it.end);
       if (!end || end <= start) end = defaultEnd(start);
-      const ev = { id: uid(), title: it.title, kind: 'otro', days: [], date, start, end, src: 'turbo' };
+      const ev = { id: it.id || uid(), title: it.title, kind: 'otro', days: [], date, start, end, src: 'turbo' };
       s.schedule.push(ev);
       ok.push(ev);
     }

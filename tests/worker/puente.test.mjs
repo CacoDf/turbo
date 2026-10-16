@@ -71,6 +71,17 @@ test('reconciliar: si lo borró en Google, Turbo lo borra y no lo vuelve a crear
   assert.deepEqual(despues.mapa, {}, 'cuando la app ya lo sacó, se olvida');
 });
 
+test('reconciliar: si de una vez desaparece casi todo lo de Turbo, no se borra nada (probable error de lectura)', () => {
+  const items = ['a', 'b', 'c', 'd'].map(id => ({ ...dentista, id }));
+  const mapa = { a: 'ga', b: 'gb', c: 'gc', d: 'gd' };
+  const quedan = normalizar([{ title: 'Dentista', turboId: 'd', gid: 'gd', dia1: '2026-10-22', hora1: '15:00', dia2: '2026-10-22', hora2: '16:00' }]);
+  const r = reconciliar({ state: { schedule: items }, mapa, google: quedan, hoy: HOY });
+  assert.deepEqual(r.cambios, []);
+  assert.deepEqual(r.mapa, mapa);
+  const uno = reconciliar({ state: { schedule: items }, mapa, google: normalizar(['b', 'c', 'd'].map(id => ({ title: 'Dentista', turboId: id, gid: `g${id}`, dia1: '2026-10-22', hora1: '15:00', dia2: '2026-10-22', hora2: '16:00' }))), hoy: HOY });
+  assert.deepEqual(uno.cambios, [{ id: 'a', borrar: true }], 'borrar uno sí se sigue');
+});
+
 test('reconciliar: lo que está fuera de lo leído (muy viejo) no se da por borrado', () => {
   const viejo = { ...dentista, date: '2026-09-01' };
   const r = reconciliar({ state: { schedule: [viejo] }, mapa: { d1: 'g1' }, google: [], hoy: HOY });

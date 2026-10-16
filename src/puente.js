@@ -88,6 +88,14 @@ export function reconciliar({ state = {}, mapa = {}, google = [], hoy }) {
       m[id] = null; // queda marcado para no volver a crearlo mientras la app no lo saque
     }
   }
+  // Freno: si de una vez "desaparecen" 3 o más y son la mitad o más de lo de Turbo en Google, es más probable
+  // un error de lectura que un borrado de verdad. No se borra nada en Turbo; se vuelve a mirar en la próxima lectura.
+  const borrados = cambios.filter(c => c.borrar && mapa[c.id] !== null);
+  const enGoogle = Object.values(mapa).filter(Boolean).length;
+  if (borrados.length >= 3 && borrados.length * 2 >= enGoogle) {
+    for (const c of borrados) m[c.id] = mapa[c.id];
+    return { eventos: google.filter(e => !e.turboId), cambios: cambios.filter(c => !borrados.includes(c)), mapa: m };
+  }
   const eventos = google.filter(e => !e.turboId);
   return { eventos, cambios, mapa: m };
 }

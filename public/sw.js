@@ -1,8 +1,8 @@
 // Service worker: permite abrir Turbo sin internet y recibir notificaciones.
-const CACHE = 'turbo-v8';
+const CACHE = 'turbo-v9';
 const SHELL = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest',
-  '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js', '/js/huecos.js',
+  '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js', '/js/huecos.js', '/js/bandeja.js',
   '/js/views/home.js', '/js/views/focus.js', '/js/views/capture.js', '/js/views/tasks.js', '/js/views/habits.js',
   '/js/views/day.js', '/js/views/garage.js', '/js/views/settings.js',
   '/js/views/goals.js', '/js/views/review.js', '/js/calendar.js',

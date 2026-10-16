@@ -77,6 +77,7 @@ function defaultState() {
     trophies: [], // { month, theme }
     calendar: { token: null, importOn: false, puenteOn: false, lastImport: 0 },
     extEvents: [], // eventos importados: { title, date, start, end, allDay }
+    bandejaVista: [], // ids de la bandeja del Atajo ya recogidos (por si el aviso al servidor falla)
     calBorrados: [], // ids de eventos de Turbo borrados aquí: el puente los borra también en Google
     meta: { createdAt: now, updatedAt: now, onboarded: false },
   };

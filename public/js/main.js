@@ -5,6 +5,7 @@ import { closeSheet, unlockAudio } from './ui.js';
 import { setRenderer, route } from './router.js';
 import { pullBackup, scheduleBackup, flushBackup, marcarVisto, actualizarBadge } from './api.js';
 import { refreshExternal } from './calendar.js';
+import { traerBandeja } from './bandeja.js';
 import * as home from './views/home.js';
 import * as focus from './views/focus.js';
 import * as capture from './views/capture.js';
@@ -111,7 +112,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return flushBackup();
   alAbrir();
   checkStreak();
-  pullBackup();
+  pullBackup().then(traerBandeja); // después del respaldo: así no lo pisa
   refreshExternal();
   queueRender();
 });
@@ -127,6 +128,7 @@ async function boot() {
   if (await pullBackup()) queueRender();
   scheduleBackup();
   refreshExternal();
+  traerBandeja();
 }
 
 boot();
