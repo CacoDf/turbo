@@ -34,7 +34,7 @@ const NAV = [
   ['foco', '⏱️', 'Foco'],
 ];
 // Subpantallas: se marcan bajo la pestaña desde donde se llega a ellas.
-const TAB_OF = { tareas: 'ahora', animo: 'ahora', garage: 'ahora', ajustes: 'ahora', revision: 'ahora', habitos: 'dia', rutinas: 'dia', estudios: 'dia' };
+const TAB_OF = { tareas: 'ahora', animo: 'ahora', garage: 'ahora', ajustes: 'ahora', revision: 'dia', habitos: 'dia', rutinas: 'dia', estudios: 'dia' };
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');

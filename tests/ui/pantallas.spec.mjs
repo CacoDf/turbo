@@ -56,8 +56,11 @@ test('Ahora y Día ya no ofrecen caminos a módulos congelados', async ({ page, 
 test('desde Día se llega a Rutinas, Hábitos, Estudios y Revisión semanal', async ({ page, app }) => {
   for (const [boton, ruta] of [['Rutinas', 'rutinas'], ['Hábitos', 'habitos'], ['Estudios', 'estudios'], ['Revisión', 'revision']]) {
     await app.abrir('dia');
+    const antes = await page.locator('#app').innerHTML();
     await page.locator('.day-links').getByRole('button', { name: new RegExp(boton) }).click();
     await expect(page).toHaveURL(new RegExp(`#/${ruta}$`));
-    await expect(page.locator('#nav a.on')).toHaveText(/Día/);
+    // Esperar a que la pantalla nueva se dibuje: si no, la barra todavía muestra la de Día y la prueba pasa en falso.
+    await expect.poll(() => page.locator('#app').innerHTML(), { message: `"${ruta}" no se dibujó` }).not.toBe(antes);
+    await expect(page.locator('#nav a.on'), `pestaña marcada en ${ruta}`).toHaveText(/Día/);
   }
 });
