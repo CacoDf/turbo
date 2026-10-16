@@ -1,7 +1,7 @@
 // Tu día en una línea: horario fijo, la hora actual y cuánto falta para lo siguiente.
 import { state, update } from '../store.js';
-import { blocksFor, allDayFor, KINDS, AREAS, nowAndNext } from '../planner.js';
-import { esc, addDays, dayKey, parseDayKey, daysBetween, fmtDateLong, fmtDuration, hmToMin, DAY_SHORT, uid } from '../util.js';
+import { blocksFor, allDayFor, huecosDel, KINDS, AREAS, nowAndNext } from '../planner.js';
+import { esc, addDays, dayKey, parseDayKey, daysBetween, fmtDateLong, fmtDuration, hmToMin, minToHm, DAY_SHORT, uid } from '../util.js';
 import { refreshExternal } from '../calendar.js';
 import { toast } from '../ui.js';
 import { rerender } from '../router.js';
@@ -65,8 +65,11 @@ function timeline(date) {
     const pos = cols > 1 ? `;left:calc(8px + (100% - 8px) * ${col} / ${cols});right:auto;width:calc((100% - 8px) / ${cols} - 4px)` : '';
     return `<div class="block k-${b.kind}" style="top:${top}px;height:${h}px${pos}"><b>${KINDS[b.kind]?.emoji || ''} ${esc(b.title)}</b><span>${b.start}–${b.end}</span></div>`;
   }).join('');
+  // Huecos libres (desde 30 min, entre 08:00 y 20:00): punteados, detrás de los eventos.
+  const libres = huecosDel(date).map(h => `<div class="block hueco" style="top:${(h.ini - START) * PX}px;height:${h.min * PX}px">
+    <b>Libre · ${fmtDuration(h.min)}</b><span>${minToHm(h.ini)}–${minToHm(h.fin)}</span></div>`).join('');
   const nowLine = isToday && nowMin >= START ? `<div class="now-line" style="top:${(nowMin - START) * PX}px"><span>ahora</span></div>` : '';
-  return `<div class="timeline" style="height:${(END - START) * PX + 10}px">${hours.join('')}${items}${nowLine}</div>`;
+  return `<div class="timeline" style="height:${(END - START) * PX + 10}px">${hours.join('')}${libres}${items}${nowLine}</div>`;
 }
 
 function dueList(date) {

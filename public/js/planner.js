@@ -1,6 +1,7 @@
 // Planificación: bloques del horario, "¿qué hago ahora?", lectura de notas sin IA y recordatorios.
 import { state } from './store.js';
 import { dayKey, addDays, atTime, daysBetween, uid, defaultEnd, validHm } from './util.js';
+import { huecos, opcionesHueco } from './huecos.js';
 
 export const AREAS = {
   estudios: { label: 'Estudios', emoji: '📚' },
@@ -30,6 +31,20 @@ export function blocksFor(date) {
   return [...own, ...ext]
     .map(b => ({ ...b, startAt: atTime(date, b.start), endAt: atTime(date, b.end) }))
     .sort((a, b) => a.startAt - b.startAt);
+}
+
+// Tiempo libre de un día (ver huecos.js), con la ventana y el mínimo de Ajustes.
+export const huecosDel = date => huecos(blocksFor(date), opcionesHueco(state.settings));
+
+// El hueco en que estás o el próximo de hoy. Si ya empezó, cuenta desde ahora (y debe seguir alcanzando).
+export function proximoHueco(now = new Date()) {
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const { min } = opcionesHueco(state.settings);
+  for (const h of huecosDel(now)) {
+    const ini = Math.max(h.ini, nowMin);
+    if (h.fin - ini >= min) return { ...h, ini, min: h.fin - ini, ahora: h.ini <= nowMin };
+  }
+  return null;
 }
 
 export const allDayFor = date => (state.extEvents || []).filter(e => e.date === dayKey(date) && e.allDay);

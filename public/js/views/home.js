@@ -1,8 +1,8 @@
 // Pantalla "Ahora": una sola tarea, un solo paso, un botón para arrancar.
 import { state, update } from '../store.js';
-import { suggestTask, nextStep, nowAndNext, blocksFor, AREAS, KINDS } from '../planner.js';
+import { suggestTask, nextStep, nowAndNext, blocksFor, proximoHueco, AREAS, KINDS } from '../planner.js';
 import { levelInfo, todayWins, habitsDoneToday } from '../game.js';
-import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, DAY_SHORT } from '../util.js';
+import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, minToHm, DAY_SHORT } from '../util.js';
 import { bar, carSvg, toast } from '../ui.js';
 import { startFocus, breakdown, toggleStep, completeTask } from '../actions.js';
 import { rerender, go } from '../router.js';
@@ -83,6 +83,15 @@ function eventPill() {
   return `<div class="pill">Día libre de horarios fijos</div>`;
 }
 
+// Tu tiempo libre de hoy: en el que estás o el próximo (ver huecos.js).
+function huecoPill() {
+  const h = proximoHueco();
+  if (!h) return '';
+  return h.ahora
+    ? `<div class="pill free">🟢 Libre ahora hasta las ${minToHm(h.fin)} · ${fmtDuration(h.min)}</div>`
+    : `<div class="pill free">🕳️ Libre de ${minToHm(h.ini)} a ${minToHm(h.fin)} · ${fmtDuration(h.min)}</div>`;
+}
+
 function onboarding() {
   if (state.meta.onboarded) return '';
   return `<section class="card intro">
@@ -160,6 +169,7 @@ export function render() {
     </div>
   </header>
   ${eventPill()}
+  ${huecoPill()}
   ${onboarding()}
   ${state.focus ? '' : minimo ? minimoCard() : calma ? '' : extraCard()}
   ${focusCard()}
