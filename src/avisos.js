@@ -181,8 +181,10 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
   // Fin del foco: lo partió él, así que no tiene silencio.
   const f = state.focus;
   if (f?.endAt) {
-    const body = f.minimo ? 'Listo 💚 Eso era todo por hoy.' : frase(F.foco, hoy);
-    serie(`foco-${f.start || 0}-${f.endAt}`, f.endAt, [{ title: f.minimo ? '💚 Listo' : '🏁 ¡Tiempo!', body }], { url: '/#/foco', sinSilencio: true });
+    const vuelta = Number(s.focoMin) >= 5 && Number(s.focoMin) <= 180 ? Number(s.focoMin) : 25;
+    const [title, body] = f.descanso ? ['☕ Fin del descanso', `¿Otra vuelta de ${vuelta} min?`]
+      : f.minimo ? ['💚 Listo', 'Listo 💚 Eso era todo por hoy.'] : ['🏁 ¡Tiempo!', frase(F.foco, hoy)];
+    serie(`foco-${f.start || 0}-${f.endAt}`, f.endAt, [{ title, body }], { url: '/#/foco', sinSilencio: true });
   }
 
   const sueno = hmToMin(s.sleepAt);

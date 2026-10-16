@@ -245,3 +245,12 @@ test('como mucho 3 huecos con aviso por día (más es ruido)', () => {
   const series = new Set(huecosDe(plan({ schedule })).map(x => x.serie));
   assert.deepEqual([...series], ['hueco-2026-10-20-10:00', 'hueco-2026-10-20-11:30', 'hueco-2026-10-20-13:00']);
 });
+
+test('fin del descanso avisa con su texto y ofrece otra vuelta con los minutos que eligió', () => {
+  const ahora = a(MAR, '10:00');
+  const r = plan({ settings: { focoMin: 37 }, focus: { start: ahora, endAt: a(MAR, '10:10'), plannedMin: 10, descanso: true } }, { ahora });
+  const f = r.find(x => x.url === '/#/foco');
+  assert.equal(f.title, '☕ Fin del descanso');
+  assert.equal(f.body, '¿Otra vuelta de 37 min?');
+  assert.equal(hora(f.at), '10:10');
+});

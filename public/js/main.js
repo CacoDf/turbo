@@ -1,7 +1,7 @@
 // Arranque de Turbo: pantallas, navegación, eventos y sincronización.
 import { state, subscribe } from './store.js';
 import { checkStreak } from './game.js';
-import { closeSheet, unlockAudio } from './ui.js';
+import { closeSheet, unlockAudio, pararAlarma } from './ui.js';
 import { setRenderer, route } from './router.js';
 import { pullBackup, scheduleBackup, flushBackup, marcarVisto, actualizarBadge } from './api.js';
 import { refreshExternal } from './calendar.js';
@@ -91,9 +91,13 @@ function alAbrir() {
   if (desdeAviso || (antes && Date.now() - antes >= TRES_DIAS)) home.activarMinimo();
 }
 
+// Cualquier toque apaga la alarma del foco (en iOS, tocar algo que no es botón no siempre genera "click").
+document.addEventListener('pointerdown', pararAlarma);
+
 // Un solo manejador para todos los botones: data-act="nombreAccion".
 document.addEventListener('click', ev => {
   unlockAudio();
+  pararAlarma();
   const el = ev.target.closest('[data-act]');
   if (!el) return;
   const fn = ACTIONS[el.dataset.act];

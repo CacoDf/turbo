@@ -18,6 +18,8 @@ function defaultState() {
       reviewAt: '19:00', // revisión semanal, los domingos
       sleepAt: '00:30', // silencio de noche: sin avisos desde esta hora…
       wakeAt: '06:00', // …hasta esta
+      focoMin: 25, // tiempos de Foco que eligió (como el temporizador del celular)
+      descansoMin: 5,
     },
     schedule: [
       { id: uid(), title: 'Clases', kind: 'clase', days: [2, 3], start: '08:30', end: '11:30' },

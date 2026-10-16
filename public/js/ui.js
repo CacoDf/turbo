@@ -83,6 +83,43 @@ export function unlockAudio() {
   } catch {}
 }
 
+// Alarma suave del foco: una campanita grave que se repite cada 5 s (hasta 1 min) hasta que toques algo.
+// Al terminar el foco baja (a descansar); al terminar el descanso sube (a partir). Solo suena con Turbo abierta:
+// con el teléfono bloqueado avisa la notificación del servidor.
+let alarmaId = null;
+function campanita(notas) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  notas.forEach((f, i) => {
+    const t = t0 + i * 0.4;
+    for (const [mult, vol] of [[1, 0.12], [2, 0.025]]) { // nota + un armónico bajito: suena a campana, no a pitido
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + 1.7);
+    }
+  });
+}
+
+export function alarma(tipo = 'foco') {
+  pararAlarma();
+  const notas = tipo === 'descanso' ? [392, 523.25] : [523.25, 392];
+  let veces = 1;
+  campanita(notas);
+  alarmaId = setInterval(() => (++veces > 12 ? pararAlarma() : campanita(notas)), 5000);
+}
+
+export function pararAlarma() {
+  clearInterval(alarmaId);
+  alarmaId = null;
+}
+
 export function beep() {
   if (!audioCtx) return;
   [0, 0.25, 0.5].forEach((t, i) => {

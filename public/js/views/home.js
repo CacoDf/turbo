@@ -4,7 +4,7 @@ import { suggestTask, nextStep, nowAndNext, blocksFor, proximoHueco, AREAS, KIND
 import { levelInfo, todayWins, habitsDoneToday } from '../game.js';
 import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, minToHm, DAY_SHORT } from '../util.js';
 import { bar, carSvg, toast } from '../ui.js';
-import { startFocus, breakdown, toggleStep, completeTask } from '../actions.js';
+import { startFocus, breakdown, toggleStep, completeTask, focoMin } from '../actions.js';
 import { rerender, go } from '../router.js';
 import { routineNow, startRoutine } from './routines.js';
 import { needsCheckin, checkinCard } from './mood.js';
@@ -148,7 +148,7 @@ function taskCard() {
       : `<button class="btn ghost small" data-act="homeBreak" data-id="${t.id}">🪄 Dividir en pasos chicos</button>`}
     <button class="btn huge" data-act="homeStart" data-id="${t.id}" data-min="5">▶ Solo 5 minutos</button>
     <div class="row">
-      <button class="btn ghost" data-act="homeStart" data-id="${t.id}" data-min="25">Foco 25 min</button>
+      <button class="btn ghost" data-act="homeStart" data-id="${t.id}" data-min="${focoMin()}">Foco ${focoMin()} min</button>
       <button class="btn ghost" data-act="homeDone" data-id="${t.id}">✓ Terminada</button>
     </div>
     <div class="row between"><button class="link" data-act="homeSkip" data-id="${t.id}">Ahora no, dame otra →</button><button class="link" data-act="go" data-to="tareas">Ver todas</button></div>

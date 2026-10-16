@@ -110,12 +110,17 @@ export function deleteTask(id) {
   });
 }
 
+// Minutos de foco y de descanso que eligió en Foco (con valores de fábrica si faltan o vienen mal).
+const minutos = (v, min, max, base) => (Number.isInteger(Number(v)) && v >= min && v <= max ? Number(v) : base);
+export const focoMin = () => minutos(state.settings.focoMin, 5, 180, 25);
+export const descansoMin = () => minutos(state.settings.descansoMin, 1, 60, 5);
+
 export function startFocus(taskId, minutes, label = null, extra = {}) {
   update(s => {
     s.focus = { taskId, label, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0, ...extra };
     if (taskId) s.currentTaskId = taskId;
   });
-  reward(XP.focusStart, 'focus', 'Arrancaste 🚦');
+  if (!extra.descanso) reward(XP.focusStart, 'focus', 'Arrancaste 🚦'); // descansar no da puntos
   go('foco');
 }
 
