@@ -201,7 +201,7 @@ test('hueco al salir de clase: avisa al salir y a los 10 min, con una tarea que 
   }, { eventos: [{ title: 'Almuerzo', date: '2026-10-20', start: '13:00', end: '14:00' }] });
   const h = huecosDe(r).filter(x => x.serie === 'hueco-2026-10-20-11:30');
   assert.deepEqual(h.map(x => hora(x.at)), ['11:30', '11:40'], 'en clase no suena: el primero llega al salir');
-  assert.equal(h[0].title, '🕳️ Hueco de 1 h 30 min');
+  assert.equal(h[0].title, '🕳️ Hueco de 1h 30min');
   assert.match(h[0].body, /hasta las 13:00/);
   assert.match(h[0].body, /Leer apunte \(25 min\)/, 'propone la que cabe, no la de 2 horas');
   assert.ok(h.every(x => x.url === '/#/ahora'));
@@ -238,4 +238,10 @@ test('como mucho 3 avisos por hueco y ninguno de noche', () => {
   const h = huecosDe(r);
   assert.deepEqual(h.map(x => hora(x.at)), ['11:55', '12:00', '12:10']);
   assert.ok(h.length <= MAX_POR_SERIE);
+});
+
+test('como mucho 3 huecos con aviso por día (más es ruido)', () => {
+  const schedule = ['09:00', '10:30', '12:00', '13:30', '15:00', '16:30'].map((t, i) => ({ id: `c${i}`, title: 'Reunión', kind: 'otro', days: [2], start: t, end: `${String(Number(t.slice(0, 2)) + 1).padStart(2, '0')}${t.slice(2)}` }));
+  const series = new Set(huecosDe(plan({ schedule })).map(x => x.serie));
+  assert.deepEqual([...series], ['hueco-2026-10-20-10:00', 'hueco-2026-10-20-11:30', 'hueco-2026-10-20-13:00']);
 });

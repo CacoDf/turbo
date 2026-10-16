@@ -4,6 +4,7 @@ import { enChile, instante, keyOf, fromDayNum, hmToMin } from './tiempo.js';
 import { huecos, opcionesHueco } from '../public/js/huecos.js';
 
 export const MAX_POR_SERIE = 3;
+export const MAX_HUECOS_DIA = 3; // huecos con aviso por día: más que eso es ruido y se terminan silenciando
 export const HORIZONTE = 36 * 3600000;
 export const DIA_MINIMO = 3 * 86400000; // tras 3 días sin abrir la app, los buenos días ofrecen el "día mínimo"
 const MIN = 60000;
@@ -43,7 +44,7 @@ const F = {
   ],
   huecoSin: [
     (d, h) => `Tienes ${d} libres hasta las ${h}. Anota algo y Turbo te propone.`,
-    (d, h) => `${d} libres hasta las ${h}. ¿Qué hacemos con ellos?`,
+    (d, h) => `${d} libres hasta las ${h}. 5 minutos de lo que sea y listo.`,
     (d, h) => `Se viene un hueco de ${d}, hasta las ${h}.`,
   ],
   hueco2: ['Ya estás libre. Parte con lo primero de Ahora.', 'Empezó tu hueco. Un toque y partes.', 'Tiempo libre ahora: ¿5 minutos de algo?'],
@@ -52,7 +53,7 @@ const F = {
 };
 
 const hm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-const dur = m => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`);
+const dur = m => (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}`); // igual que fmtDuration en la app
 
 const corto = (t, n = 40) => (String(t).length > n ? `${String(t).slice(0, n - 1)}…` : String(t));
 
@@ -117,8 +118,8 @@ export function planAvisos({ state = {}, eventos = [], visto = null, ahora = Dat
     // Huecos libres entre cosas (no el de la mañana antes de todo): el día vacío ya lo cubren los buenos días.
     const opt = opcionesHueco(s, dow);
     const finales = new Set(bloques.map(b => hmToMin(b.end)));
-    for (const h of huecos(bloques, opt)) {
-      if (h.ini === opt.desde && !finales.has(h.ini)) continue;
+    const conAviso = huecos(bloques, opt).filter(h => h.ini !== opt.desde || finales.has(h.ini)).slice(0, MAX_HUECOS_DIA);
+    for (const h of conAviso) {
       const t = tareaQueCabe(state, key, h.min);
       const d = dur(h.min);
       const primero = { title: `🕳️ Hueco de ${d}`, body: t ? frase(F.hueco, dia)(d, hm(h.fin), t) : frase(F.huecoSin, dia)(d, hm(h.fin)) };

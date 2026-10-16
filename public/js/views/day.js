@@ -66,7 +66,7 @@ function timeline(date) {
     return `<div class="block k-${b.kind}" style="top:${top}px;height:${h}px${pos}"><b>${KINDS[b.kind]?.emoji || ''} ${esc(b.title)}</b><span>${b.start}–${b.end}</span></div>`;
   }).join('');
   // Huecos libres (desde 30 min, entre 08:00 y 20:00): punteados, detrás de los eventos.
-  const libres = huecosDel(date).map(h => `<div class="block hueco" style="top:${(h.ini - START) * PX}px;height:${h.min * PX}px">
+  const libres = huecosDel(date).map(h => `<div class="block hueco"${isToday ? ' data-act="go" data-to="ahora"' : ''} style="top:${(h.ini - START) * PX}px;height:${h.min * PX}px">
     <b>Libre · ${fmtDuration(h.min)}</b><span>${minToHm(h.ini)}–${minToHm(h.fin)}</span></div>`).join('');
   const nowLine = isToday && nowMin >= START ? `<div class="now-line" style="top:${(nowMin - START) * PX}px"><span>ahora</span></div>` : '';
   return `<div class="timeline" style="height:${(END - START) * PX + 10}px">${hours.join('')}${libres}${items}${nowLine}</div>`;

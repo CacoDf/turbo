@@ -32,10 +32,28 @@ test('Día marca los huecos libres entre clases seguidas y eventos de Google', a
   await page.screenshot({ path: 'tests/capturas/dia-huecos.png' });
 });
 
-test('Ahora muestra el próximo hueco de hoy', async ({ page, app }) => {
+test('Ahora muestra el próximo hueco de hoy (en clase, en la misma pastilla)', async ({ page, app }) => {
   await conDia(page, app);
-  await expect(page.locator('.pill.free')).toHaveText('🕳️ Libre de 11:30 a 13:00 · 1h 30min');
+  await expect(page.locator('.pill', { hasText: 'En Finanzas' })).toContainText('después, libre hasta las 13:00');
+  await expect(page.locator('.pill.free')).toHaveCount(0);
   await page.screenshot({ path: 'tests/capturas/ahora-hueco.png' });
+});
+
+test('fuera de clase, Ahora muestra el próximo hueco en su propia pastilla', async ({ page, app }) => {
+  await conDia(page, app);
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 13, 30)); // en el almuerzo (Google): el hueco viene a las 14:00
+  await page.reload();
+  await expect(page.locator('.pill', { hasText: 'Almuerzo' })).toContainText('después, libre hasta las 20:00');
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 12, 0)); // en un hueco
+  await page.reload();
+  await expect(page.locator('.pill.free')).toHaveText('🟢 Libre ahora hasta las 13:00 · 1h');
+});
+
+test('tocar un hueco de hoy en Día lleva a Ahora', async ({ page, app }) => {
+  await conDia(page, app);
+  await app.abrir('dia');
+  await page.locator('.block.hueco').first().click();
+  await expect(page).toHaveURL(/#\/ahora/);
 });
 
 test('si ya estás en un hueco, Ahora dice hasta cuándo', async ({ page, app }) => {

@@ -215,6 +215,7 @@ label.muted { display: block; margin-top: 8px; }
 .block.k-otro { background: var(--surface2); border-color: var(--muted); }
 .block.hueco { z-index: 0; background: transparent; border: 1px dashed var(--good); color: var(--good); }
 .block.hueco b { font-weight: 600; }
+.block.hueco b, .block.hueco span { align-self: flex-start; background: var(--bg); padding: 0 4px; border-radius: 6px; } /* que las líneas de hora no crucen el texto */
 .now-line { position: absolute; left: -6px; right: 0; border-top: 2px solid var(--bad); z-index: 2; }
 .now-line::before { content: ''; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); }
 .now-line span { position: absolute; right: 0; top: -20px; font-size: 11px; color: var(--bad); }

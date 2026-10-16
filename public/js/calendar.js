@@ -60,11 +60,11 @@ function puenteCard() {
       <div class="row"><button class="btn ghost" data-act="calRefresh">Actualizar ahora</button><button class="btn danger ghost" data-act="calPuenteOff">Desconectar</button></div>`;
   }
   return `<div class="label">GOOGLE CALENDAR, EN LOS DOS SENTIDOS</div>
-    <p class="muted small">Lo que anotas con hora sale en Google, y todo tu Google aparece aquí. Se arma una vez, en el computador (5 min).</p>
+    <p class="muted small">Lo que anotas con hora sale en Google, y todo tu Google aparece aquí. Se arma una vez en el computador, en 5 min. Puede esperar a que estés en uno.</p>
     <details class="small"><summary><b>Paso a paso</b></summary>
       <ol class="muted">
         <li>En el <b>computador</b>, abre <b>script.google.com</b> → <b>Nuevo proyecto</b>.</li>
-        <li>Borra lo que aparece y pega el código del puente: <button class="btn ghost small" data-act="calPuenteCopy">Copiar código</button></li>
+        <li>Borra lo que aparece y pega el código del puente: <button class="btn ghost" data-act="calPuenteCopy">Copiar código</button></li>
         <li>Guarda (💾). Arriba elige <b>probar</b> y toca <b>▶ Ejecutar</b>. Google pide permisos: <b>Revisar permisos</b> → tu cuenta → <b>Configuración avanzada</b> → <b>Ir a…</b> → <b>Permitir</b>.</li>
         <li><b>Implementar</b> → <b>Nueva implementación</b> → ⚙️ <b>Aplicación web</b>. Ejecutar como: <b>Yo</b>. Quién tiene acceso: <b>Cualquier persona</b>. → <b>Implementar</b>.</li>
         <li>Copia la <b>URL de la aplicación web</b> (termina en <b>/exec</b>) y pégala aquí.</li>
@@ -85,7 +85,7 @@ export function calendarCard() {
   return `<section class="card">
     <h3>📅 Calendario</h3>
     ${puenteCard()}
-    <details class="small" style="margin-top:16px"><summary class="muted">Sin puente (solo lectura)</summary>
+    <details class="small" style="margin-top:16px"><summary class="muted">Sin puente: Turbo solo ve tu Google (más lento)</summary>
     <div class="label">TURBO EN TU CALENDARIO</div>
     ${c.token ? `<p class="muted small">Tus clases, gym, eventos, pruebas y tareas con fecha aparecen en tu calendario y se actualizan solas.</p>
       <a class="btn" href="${webcalLink()}">📱 Agregar al Calendario del iPhone</a>

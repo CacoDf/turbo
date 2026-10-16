@@ -73,7 +73,10 @@ function eventPill() {
   const { current, next } = nowAndNext();
   const now = Date.now();
   if (current) {
-    return `<div class="pill">${KINDS[current.kind]?.emoji || '📌'} En ${esc(current.title)} · termina en ${fmtDuration((current.endAt - now) / 60000)}</div>`;
+    // Si al salir queda un hueco, va en la misma línea: una pastilla, no dos.
+    const h = proximoHueco();
+    const despues = h && !h.ahora && minToHm(h.ini) === current.end ? ` · después, libre hasta las ${minToHm(h.fin)}` : '';
+    return `<div class="pill">${KINDS[current.kind]?.emoji || '📌'} En ${esc(current.title)} · termina en ${fmtDuration((current.endAt - now) / 60000)}${despues}</div>`;
   }
   if (next) {
     const min = (next.startAt - now) / 60000;
@@ -86,10 +89,10 @@ function eventPill() {
 // Tu tiempo libre de hoy: en el que estás o el próximo (ver huecos.js).
 function huecoPill() {
   const h = proximoHueco();
-  if (!h) return '';
+  if (!h || (nowAndNext().current && !h.ahora)) return ''; // en clase o en un evento, ya va en la pastilla de arriba
   return h.ahora
     ? `<div class="pill free">🟢 Libre ahora hasta las ${minToHm(h.fin)} · ${fmtDuration(h.min)}</div>`
-    : `<div class="pill free">🕳️ Libre de ${minToHm(h.ini)} a ${minToHm(h.fin)} · ${fmtDuration(h.min)}</div>`;
+    : `<div class="pill free">🟢 Libre de ${minToHm(h.ini)} a ${minToHm(h.fin)} · ${fmtDuration(h.min)}</div>`;
 }
 
 function onboarding() {
