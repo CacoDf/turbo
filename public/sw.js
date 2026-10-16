@@ -1,5 +1,5 @@
 // Service worker: permite abrir Turbo sin internet y recibir notificaciones.
-const CACHE = 'turbo-v4';
+const CACHE = 'turbo-v5';
 const SHELL = [
   '/', '/index.html', '/css/app.css', '/manifest.webmanifest',
   '/js/main.js', '/js/store.js', '/js/util.js', '/js/game.js', '/js/planner.js', '/js/api.js', '/js/ui.js', '/js/router.js', '/js/actions.js',
@@ -49,9 +49,22 @@ function urlForTag(tag) {
   return '/';
 }
 
-// El servidor manda un "push" vacío; aquí se piden los mensajes pendientes y se muestran.
+// Respaldo del push declarativo: el iPhone (iOS 18.4+) muestra solo el aviso sin pasar por aquí.
+// Otros navegadores entregan el mismo JSON a este service worker, que lo muestra igual.
+// Suscripciones antiguas reciben un push vacío: se piden los mensajes pendientes al servidor.
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
+    let data = null;
+    try { data = e.data?.json(); } catch {}
+    if (data?.web_push === 8030 && data.notification) {
+      const n = data.notification;
+      if (Number.isInteger(data.app_badge) && self.navigator.setAppBadge) {
+        await (data.app_badge ? self.navigator.setAppBadge(data.app_badge) : self.navigator.clearAppBadge()).catch(() => {});
+      }
+      return self.registration.showNotification(n.title, {
+        body: n.body, tag: n.tag || undefined, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: { url: n.navigate || '/' },
+      });
+    }
     let messages = [];
     try {
       const sub = await self.registration.pushManager.getSubscription();

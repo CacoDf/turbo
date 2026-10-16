@@ -24,19 +24,13 @@ test('respaldo: guarda, lee y no pisa con versión vieja (409)', async () => {
   assert.equal((await w.req('PUT', 'state', { updatedAt: 50, state: {} })).status, 409);
 });
 
-test('push: clave VAPID, suscripción y cron manda solo lo que toca', async () => {
+test('push sin claves (suscripción antigua): VAPID válido, push vacío y mensaje en el buzón', async () => {
   const { key } = await w.json('GET', 'push/key');
   assert.equal(key.length, 87);
   assert.equal((await w.req('POST', 'push/subscribe', { endpoint: ENDPOINT, keys: {} })).status, 200);
-
-  const now = Date.now();
-  await w.req('PUT', 'reminders', { reminders: [
-    { id: 'a', at: now - 1000, title: 'Ya toca', body: 'b1' },
-    { id: 'b', at: now + 3600000, title: 'Después', body: 'b2' },
-    { id: 'old', at: now - 3600000, title: 'Muy viejo', body: '' },
-  ] });
-  await w.cron();
-  assert.equal(w.pushes.length, 1, 'el cron manda 1 push');
+  assert.equal((await w.json('POST', 'push/test')).devices, 1);
+  assert.equal(w.pushes.length, 1);
+  assert.equal(w.pushes[0].body.length, 0, 'push vacío');
 
   const m = w.pushes[0].headers.authorization.match(/^vapid t=([^.]+)\.([^.]+)\.([^,]+), k=(.+)$/);
   assert.ok(m, 'header Authorization con formato vapid');
@@ -47,16 +41,17 @@ test('push: clave VAPID, suscripción y cron manda solo lo que toca', async () =
   assert.equal(payload.aud, 'https://push.test');
   assert.equal(payload.sub, 'https://turbo.test');
 
-  let j = await w.pendientes(ENDPOINT);
+  const j = await w.pendientes(ENDPOINT);
   assert.equal(j.messages.length, 1);
-  assert.equal(j.messages[0].title, 'Ya toca');
+  assert.equal(j.messages[0].body, '¡Las notificaciones funcionan!');
   assert.equal((await w.pendientes(ENDPOINT)).messages.length, 0, 'el buzón queda vacío');
+});
 
+test('versiones viejas de la app que mandan recordatorios: 200 y se ignoran (los calcula el servidor)', async () => {
+  const r = await w.req('PUT', 'reminders', { reminders: [{ id: 'a', at: Date.now() - 1000, title: 'Viejo' }] });
+  assert.equal(r.status, 200);
   await w.cron();
-  assert.equal(w.pushes.length, 1, 'no repite recordatorios enviados');
-  await w.req('PUT', 'reminders', { reminders: [{ id: 'a', at: now - 1000, title: 'Ya toca', body: 'b1' }] });
-  await w.cron();
-  assert.equal(w.pushes.length, 1, 're-sincronizar no reenvía uno ya mandado');
+  assert.ok(!(await w.pendientes(ENDPOINT)).messages.some(m => m.title === 'Viejo'), 'no manda lo que mandó el teléfono');
 });
 
 test('IA: sin clave 503; con clave normaliza tareas, pasos, plan de estudio, secretaria, metas y revisión', async () => {
@@ -102,6 +97,7 @@ test('notificación de prueba y rutas normales', async () => {
   const antes = w.pushes.length;
   const j = await w.json('POST', 'push/test');
   assert.equal(j.devices, 1);
+  await w.pendientes(ENDPOINT);
   assert.equal(w.pushes.length, antes + 1);
   const r = await w.mf.dispatchFetch('https://turbo.test/');
   assert.equal(await r.text(), 'asset');
@@ -208,13 +204,22 @@ test('calendario enorme (años de historial) se procesa rápido', async () => {
   assert.ok(j.events.filter(e => e.title === 'Semanal 0').length >= 15, 'eventos semanales antiguos siguen apareciendo');
 });
 
-test('cron: las consultas usan índice (no recorren la tabla entera)', async () => {
+test('cron: las consultas usan índice o clave primaria (no recorren la tabla entera)', async () => {
   await w.json('GET', 'ping'); // asegura que el esquema existe
   const db = await w.mf.getD1Database('DB');
   const plan = async sql => (await db.prepare('EXPLAIN QUERY PLAN ' + sql).all()).results.map(r => r.detail).join(' | ');
-  const due = await plan('SELECT * FROM reminders WHERE sent = 0 AND at <= 1');
-  assert.match(due, /USING INDEX idx_reminders_due/, due);
-  assert.doesNotMatch(due, /SCAN reminders/, due);
-  const marcar = await plan("UPDATE reminders SET sent = 1 WHERE id = 'x'");
-  assert.match(marcar, /SEARCH reminders USING (INDEX|PRIMARY KEY|COVERING INDEX) \S+/, marcar);
+  const usaIndice = /SEARCH \S+ USING (INDEX|PRIMARY KEY|COVERING INDEX)/;
+  const consultas = [
+    "SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan')",
+    'SELECT id, at, title, body, url, serie, paso, inicio, badge FROM avisos WHERE sent = 0 AND at <= 1',
+    "UPDATE avisos SET sent = 1 WHERE id = 'x'",
+    'DELETE FROM avisos WHERE sent = 0',
+    'DELETE FROM avisos WHERE sent = 1 AND at < 1',
+  ];
+  for (const sql of consultas) {
+    const p = await plan(sql);
+    assert.match(p, usaIndice, `${sql} → ${p}`);
+    assert.doesNotMatch(p, /SCAN (kv|avisos)/, `${sql} → ${p}`);
+  }
+  assert.match(await plan(consultas[1]), /idx_avisos_due/);
 });

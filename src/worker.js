@@ -3,9 +3,14 @@
 // - /api/ai/*       IA con Gemini (nivel gratis).
 // - /api/state      respaldo de tus datos.
 // - /api/push/*     notificaciones (web push con claves VAPID generadas aquí mismo).
-// - cron cada minuto: manda los recordatorios que ya tocan.
+// - /api/seen       la app avisa que se abrió (cancela insistencias y apaga el "día mínimo").
+// - cron cada minuto: calcula los avisos desde el respaldo y el calendario (src/avisos.js) y manda los que tocan.
 //
 // Variables en Cloudflare: APP_SECRET (obligatoria), GEMINI_API_KEY (para IA), GEMINI_MODEL (opcional).
+
+import { planAvisos } from './avisos.js';
+import { cifrar, mensajeDeclarativo, tieneClaves } from './push.js';
+import { TZ, pad, santiagoParts, dayNum, fromDayNum, keyOf, keyToNum } from './tiempo.js';
 
 const AREAS = ['estudios', 'entreno', 'pega', 'casa', 'plata', 'personal'];
 
@@ -23,7 +28,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(ensureSchema(env).then(() => sendDueReminders(env)));
+    ctx.waitUntil(ensureSchema(env).then(() => cronAvisos(env, event.scheduledTime || Date.now())));
   },
 };
 
@@ -47,10 +52,11 @@ async function ensureSchema(env) {
   await env.DB.batch([
     env.DB.prepare('CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL, updated INTEGER NOT NULL)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS subs (endpoint TEXT PRIMARY KEY, json TEXT NOT NULL, created INTEGER NOT NULL)'),
-    env.DB.prepare('CREATE TABLE IF NOT EXISTS reminders (id TEXT PRIMARY KEY, at INTEGER NOT NULL, title TEXT NOT NULL, body TEXT, sent INTEGER NOT NULL DEFAULT 0)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT NOT NULL, title TEXT NOT NULL, body TEXT, tag TEXT, created INTEGER NOT NULL)'),
-    // El cron corre cada minuto: sin este índice, "SELECT ... WHERE sent = 0 AND at <= ?" recorre toda la tabla 1.440 veces al día.
-    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders (sent, at)'),
+    // Avisos calculados por el servidor. La tabla vieja "reminders" (los mandaba el teléfono) queda sin uso.
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS avisos (id TEXT PRIMARY KEY, at INTEGER NOT NULL, title TEXT NOT NULL, body TEXT, url TEXT, serie TEXT, paso INTEGER NOT NULL DEFAULT 1, inicio INTEGER, badge INTEGER, sent INTEGER NOT NULL DEFAULT 0)'),
+    // El cron corre cada minuto: sin este índice, "WHERE sent = 0 AND at <= ?" recorre toda la tabla 1.440 veces al día.
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_avisos_due ON avisos (sent, at)'),
   ]);
   schemaReady = true;
 }
@@ -121,6 +127,12 @@ async function api(request, env, url) {
     case 'GET ping':
       return json({ ok: true, ai: !!env.GEMINI_API_KEY });
 
+    case 'POST seen': {
+      const prev = await env.DB.prepare("SELECT updated FROM kv WHERE k = 'lastSeen'").first();
+      await kvSet(env, 'lastSeen', true);
+      return json({ ok: true, prev: prev?.updated || null });
+    }
+
     case 'GET state':
       return json((await kvGet(env, 'state')) || {});
 
@@ -179,7 +191,7 @@ async function api(request, env, url) {
     case 'PUT calendar/import-url': {
       const u = String(body?.url || '').trim().replace(/^webcal:/i, 'https:');
       if (!u) {
-        await env.DB.prepare("DELETE FROM kv WHERE k = 'importIcs'").run();
+        await env.DB.prepare("DELETE FROM kv WHERE k IN ('importIcs', 'importCache')").run();
         return json({ ok: true, events: [] });
       }
       if (!/^https:\/\/\S+$/.test(u)) fail(400, 'Ese link no parece válido. Debe empezar con https://');
@@ -221,16 +233,10 @@ async function api(request, env, url) {
       return json({ ok: true, devices: n });
     }
 
-    case 'PUT reminders': {
-      const list = Array.isArray(body?.reminders) ? body.reminders.slice(0, 200) : [];
-      const stmts = [
-        env.DB.prepare('DELETE FROM reminders WHERE sent = 0'),
-        env.DB.prepare('DELETE FROM reminders WHERE at < ?').bind(Date.now() - 3 * 86400000),
-        ...list.map(r => env.DB.prepare('INSERT OR IGNORE INTO reminders (id, at, title, body) VALUES (?, ?, ?, ?)').bind(String(r.id), Number(r.at), String(r.title).slice(0, 120), String(r.body || '').slice(0, 300))),
-      ];
-      await env.DB.batch(stmts);
-      return json({ ok: true, count: list.length });
-    }
+    // Versiones viejas de la app (guardadas en el teléfono) todavía mandan sus recordatorios: se ignoran,
+    // porque ahora los calcula el servidor.
+    case 'PUT reminders':
+      return json({ ok: true, count: 0 });
   }
   fail(404, 'Ruta no encontrada');
 }
@@ -334,8 +340,9 @@ Reglas:
   return (out.sessions || []).slice(0, n).map(s => String(s.title).slice(0, 100));
 }
 
-// ---------- notificaciones (web push sin contenido + buzón) ----------
-// El push va vacío (no requiere cifrar contenido). Al recibirlo, el teléfono pide sus mensajes a /api/push/pending.
+// ---------- notificaciones ----------
+// Con las claves de la suscripción, el push lleva el aviso cifrado en formato declarativo (src/push.js).
+// Suscripciones sin claves (muy viejas): push vacío y el teléfono pide sus mensajes a /api/push/pending.
 
 async function vapidKeys(env) {
   let keys = await kvGet(env, 'vapid');
@@ -360,11 +367,12 @@ async function vapidAuth(env, endpoint) {
   return `vapid t=${header}.${payload}.${b64url(sig)}, k=${keys.publicKey}`;
 }
 
-async function sendPush(env, endpoint) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { Authorization: await vapidAuth(env, endpoint), TTL: '86400', Urgency: 'high', 'Content-Length': '0' },
-  });
+// body: bytes cifrados, o null para el push vacío. Un aviso que no llega en 1 hora ya no sirve (TTL).
+async function sendPush(env, endpoint, body = null) {
+  const headers = { Authorization: await vapidAuth(env, endpoint), TTL: '3600', Urgency: 'high' };
+  if (body) Object.assign(headers, { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream' });
+  else headers['Content-Length'] = '0';
+  const res = await fetch(endpoint, { method: 'POST', headers, body: body || undefined });
   if (res.status === 404 || res.status === 410) {
     await env.DB.batch([
       env.DB.prepare('DELETE FROM subs WHERE endpoint = ?').bind(endpoint),
@@ -376,24 +384,79 @@ async function sendPush(env, endpoint) {
   return res.ok;
 }
 
+// messages: [{ title, body, tag, url, badge }]
 async function notifyAll(env, messages) {
-  const { results: subs } = await env.DB.prepare('SELECT endpoint FROM subs').all();
+  const { results: subs } = await env.DB.prepare('SELECT endpoint, json FROM subs').all();
   if (!subs.length || !messages.length) return 0;
+  const origin = (await kvGet(env, 'origin')) || 'https://turbo.invalid';
   const now = Date.now();
-  await env.DB.batch(subs.flatMap(s => messages.map(m =>
-    env.DB.prepare('INSERT INTO outbox (endpoint, title, body, tag, created) VALUES (?, ?, ?, ?, ?)').bind(s.endpoint, m.title, m.body || '', m.tag || null, now))));
-  await Promise.all(subs.map(s => sendPush(env, s.endpoint).catch(e => console.warn(e))));
+  const envios = [];
+  const buzon = [];
+  for (const s of subs) {
+    let sub = null;
+    try { sub = JSON.parse(s.json); } catch {}
+    if (tieneClaves(sub)) {
+      for (const m of messages) envios.push(cifrar(mensajeDeclarativo(m, origin), sub.keys).then(b => sendPush(env, s.endpoint, b)));
+    } else {
+      buzon.push(...messages.map(m => env.DB.prepare('INSERT INTO outbox (endpoint, title, body, tag, created) VALUES (?, ?, ?, ?, ?)').bind(s.endpoint, m.title, m.body || '', m.tag || null, now)));
+      envios.push(Promise.resolve().then(() => sendPush(env, s.endpoint)));
+    }
+  }
+  if (buzon.length) await env.DB.batch(buzon);
+  await Promise.all(envios.map(p => p.catch(e => console.warn(e))));
   return subs.length;
 }
 
-async function sendDueReminders(env) {
-  const now = Date.now();
-  const { results: due } = await env.DB.prepare('SELECT * FROM reminders WHERE sent = 0 AND at <= ?').bind(now).all();
+// Cada minuto. Lecturas baratas: 5 filas de kv por clave primaria + los avisos que tocan, por índice.
+async function cronAvisos(env, now) {
+  const { results } = await env.DB.prepare("SELECT k, updated FROM kv WHERE k IN ('state', 'importIcs', 'importCache', 'lastSeen', 'plan')").all();
+  const v = Object.fromEntries(results.map(r => [r.k, r.updated]));
+
+  // 1. Google Calendar: el servidor lo lee solo cada hora, aunque la app no se abra.
+  //    Ese minuto no planifica (la lectura gasta CPU); el siguiente ya ve el calendario nuevo.
+  const leerCalendario = v.importIcs && (!v.importCache || now - v.importCache > 60 * 60000);
+  if (leerCalendario) await refrescarCalendario(env);
+
+  // 2. Replanifica si cambió algo (estado, calendario, última apertura) o cada 3 horas.
+  const plan = v.plan && !leerCalendario ? await kvGet(env, 'plan') : null;
+  const firma = `${v.state || 0}|${v.importIcs ? v.importCache || 0 : 0}|${v.lastSeen || 0}`;
+  if (v.state && !leerCalendario && (!plan || plan.firma !== firma || now - plan.t > 3 * 3600000)) {
+    await replanificar(env, now, { visto: v.lastSeen || null, conCalendario: !!v.importIcs });
+    await kvSet(env, 'plan', { t: now, firma });
+  }
+
+  // 3. Manda los que tocan.
+  const { results: due } = await env.DB.prepare('SELECT id, at, title, body, url, serie, paso, inicio, badge FROM avisos WHERE sent = 0 AND at <= ?').bind(now).all();
   if (!due.length) return;
-  await env.DB.batch(due.map(r => env.DB.prepare('UPDATE reminders SET sent = 1 WHERE id = ?').bind(r.id)));
-  // Los que se atrasaron más de 30 min (p. ej. el servidor estuvo caído) se descartan.
-  const fresh = due.filter(r => now - r.at < 30 * 60000);
-  await notifyAll(env, fresh.map(r => ({ title: r.title, body: r.body, tag: r.id })));
+  await env.DB.batch(due.map(a => env.DB.prepare('UPDATE avisos SET sent = 1 WHERE id = ?').bind(a.id)));
+  const listos = due.filter(a => now - a.at < 30 * 60000) // atrasados más de 30 min (p. ej. servidor caído): se descartan
+    .filter(a => !(a.paso > 1 && v.lastSeen && v.lastSeen >= a.inicio)); // abrió la app: no se insiste
+  await notifyAll(env, listos.map(a => ({ title: a.title, body: a.body, tag: a.serie || a.id, url: a.url, badge: a.badge })));
+}
+
+async function replanificar(env, now, { visto, conCalendario }) {
+  const state = (await kvGet(env, 'state'))?.state || {};
+  const cache = conCalendario ? await kvGet(env, 'importCache') : null;
+  const avisos = planAvisos({ state, eventos: cache?.events || [], visto, ahora: now });
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM avisos WHERE sent = 0'),
+    env.DB.prepare('DELETE FROM avisos WHERE sent = 1 AND at < ?').bind(now - 3 * 86400000),
+    // Ids estables (tipo + día): un aviso ya mandado no se vuelve a insertar.
+    ...avisos.map(a => env.DB.prepare('INSERT OR IGNORE INTO avisos (id, at, title, body, url, serie, paso, inicio, badge) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(a.id, a.at, a.title, a.body, a.url, a.serie, a.paso, a.inicio, a.badge)),
+  ]);
+}
+
+async function refrescarCalendario(env) {
+  const u = await kvGet(env, 'importIcs');
+  const cache = await kvGet(env, 'importCache');
+  try {
+    await kvSet(env, 'importCache', { url: u, t: Date.now(), events: await importCalendar(u) });
+  } catch (e) {
+    // Si Google falla, se conserva lo último y se reintenta en una hora.
+    console.warn('Calendario (cron)', e.message);
+    await kvSet(env, 'importCache', { url: u, t: Date.now(), events: cache?.url === u ? cache.events : [], error: e.message });
+  }
 }
 
 async function pendingMessages(env, endpoint) {
@@ -514,26 +577,9 @@ Haces su revisión semanal: como un buen entrenador, honesto pero sin retar. Cel
 
 // ---------- Fase 3: calendario (.ics) ----------
 
-const TZ = 'America/Santiago';
-const pad = n => String(n).padStart(2, '0');
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
-// Fecha y hora "de pared" en Chile para un instante dado.
-// El formateador se crea una sola vez: crearlo es caro y el plan gratis da ~10 ms de CPU.
-let santiagoFmt = null;
-function santiagoParts(date = new Date()) {
-  santiagoFmt = santiagoFmt || new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  const p = {};
-  for (const x of santiagoFmt.formatToParts(date)) p[x.type] = x.value;
-  return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour, mm: +p.minute };
-}
-
-// Días "de pared" como enteros (días desde 1970) para operar sin husos horarios.
-const dayNum = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / 86400000);
-const fromDayNum = n => { const x = new Date(n * 86400000); return { y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate(), dow: x.getUTCDay() }; };
-const keyOf = n => { const x = fromDayNum(n); return `${x.y}-${pad(x.m)}-${pad(x.d)}`; };
 const icsDate = n => { const x = fromDayNum(n); return `${x.y}${pad(x.m)}${pad(x.d)}`; };
-const keyToNum = k => { const [y, m, d] = k.split('-').map(Number); return dayNum(y, m, d); };
 
 function icsEscape(s) {
   return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
