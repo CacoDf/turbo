@@ -14,8 +14,13 @@ const DESCANSO = [
 ];
 
 // Rueda de minutos (en el iPhone abre el selector nativo, como el temporizador).
-export const rueda = (campo, desde, hasta, valor) => `<select class="input" data-change="focusSet" data-f="${campo}" aria-label="${campo === 'focoMin' ? 'Minutos de foco' : 'Minutos de descanso'}">
+const rueda = (campo, desde, hasta, valor) => `<select class="input" data-change="focusSet" data-f="${campo}" aria-label="${campo === 'focoMin' ? 'Minutos de foco' : 'Minutos de descanso'}">
   ${Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i).map(n => `<option value="${n}"${n === valor ? ' selected' : ''}>${n} min</option>`).join('')}</select>`;
+
+// Foco y descanso lado a lado: la misma fila en Foco y en Ahora (el valor queda guardado para todo).
+export const ruedas = () => `<div class="row">
+  <label class="grow muted small">Foco ▾ ${rueda('focoMin', 5, 180, focoMin())}</label>
+  <label class="grow muted small">Descanso ▾ ${rueda('descansoMin', 1, 60, descansoMin())}</label></div>`;
 
 const COMPANION = [
   'Vas en tercera. Mantén las revoluciones 🏎️',
@@ -38,10 +43,7 @@ export function render() {
     const descanso = descansoMin();
     return `<header class="top"><h1>Foco</h1></header>
       <section class="card">
-      <div class="row">
-        <label class="grow muted small">Foco ▾ ${rueda('focoMin', 5, 180, foco)}</label>
-        <label class="grow muted small">Descanso ▾ ${rueda('descansoMin', 1, 60, descanso)}</label>
-      </div>
+      ${ruedas()}
       <button class="btn huge" data-act="focusFree" data-min="${foco}">▶ Partir ${foco} min</button>
       <button class="btn ghost" data-act="focusFree" data-min="5">Solo 5 min</button>
       ${foco === 25 && descanso === 5 ? '<p class="muted small">✓ Clásico 25 / 5</p>' : '<button class="link" data-act="focusClasico">Volver al clásico 25 / 5</button>'}

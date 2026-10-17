@@ -14,7 +14,8 @@ test('elegir 37 / 10, partir, descansar y volver a la misma tarea; los minutos q
   // En Ahora, la rueda muestra sus minutos y el botón de foco parte con la tarea.
   await page.locator('#nav a', { hasText: 'Ahora' }).click();
   await expect(page.getByLabel('Minutos de foco')).toHaveValue('37');
-  await page.getByRole('button', { name: '▶ Foco' }).click();
+  await expect(page.getByLabel('Minutos de descanso')).toHaveValue('10');
+  await page.getByRole('button', { name: 'Foco 37 min' }).click();
   s = await app.guardado();
   expect(s.focus).toMatchObject({ plannedMin: 37, taskId: 't1' });
 
@@ -51,21 +52,26 @@ test('elegir 37 / 10, partir, descansar y volver a la misma tarea; los minutos q
   await expect(page.getByRole('button', { name: '▶ Partir 25 min' })).toBeVisible();
 });
 
-test('en Ahora se eligen los minutos de foco con la misma rueda, y Foco los recuerda', async ({ page, app }) => {
+test('en Ahora se eligen foco y descanso con las mismas ruedas, y Foco los recuerda', async ({ page, app }) => {
   await app.abrir('ahora');
   const rueda = page.getByLabel('Minutos de foco');
   await expect(rueda).toHaveValue('25'); // el clásico de fábrica
+  await expect(page.getByLabel('Minutos de descanso')).toHaveValue('5');
   await rueda.selectOption('45');
-  expect((await app.guardado()).settings).toMatchObject({ focoMin: 45 });
+  await page.getByLabel('Minutos de descanso').selectOption('12');
+  expect((await app.guardado()).settings).toMatchObject({ focoMin: 45, descansoMin: 12 });
   await expect(rueda).toHaveValue('45');
+  await expect(page.getByRole('button', { name: 'Foco 45 min' })).toBeVisible();
   await page.locator('.card.now').screenshot({ path: 'tests/capturas/ahora-foco-elegir.png' }); // la fila queda bajo la barra en la captura de pantalla
-  await page.getByRole('button', { name: '▶ Foco' }).click();
+  await page.getByRole('button', { name: 'Foco 45 min' }).click();
   expect((await app.guardado()).focus).toMatchObject({ plannedMin: 45, taskId: 't1' });
   await expect(page.getByText('de 45 min')).toBeVisible();
-  await page.getByRole('button', { name: 'Terminar sesión' }).click();
+  await page.clock.fastForward('45:05');
+  await expect(page.getByRole('button', { name: '☕ Descanso 12 min' })).toBeVisible();
   await page.getByRole('button', { name: 'Lo dejo aquí por ahora' }).click();
   await page.locator('#nav a', { hasText: 'Foco' }).click();
   await expect(page.getByLabel('Minutos de foco')).toHaveValue('45');
+  await expect(page.getByLabel('Minutos de descanso')).toHaveValue('12');
 });
 
 test('con un evento del calendario en curso, la rueda también está y el botón usa sus minutos', async ({ page, app }) => {
@@ -79,7 +85,8 @@ test('con un evento del calendario en curso, la rueda también está y el botón
   await expect(page.getByRole('button', { name: '▶ 25 min de foco' })).toBeVisible();
   await page.getByLabel('Minutos de foco').selectOption('50');
   await expect(page.getByRole('button', { name: '▶ 50 min de foco' })).toBeVisible();
-  await expect(page.getByText('varias vueltas de 50 min')).toBeVisible();
+  await page.getByLabel('Minutos de descanso').selectOption('10');
+  await expect(page.getByText('varias vueltas de 50 min con 10 de descanso')).toBeVisible();
   await page.locator('.cal-now').screenshot({ path: 'tests/capturas/ahora-calendario-foco.png' });
   await page.getByLabel('Minutos de foco').selectOption('120'); // quedan 105 min del evento: no se pasa del final
   await expect(page.getByRole('button', { name: '▶ 105 min de foco' })).toBeVisible();

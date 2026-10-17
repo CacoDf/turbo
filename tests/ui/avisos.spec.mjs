@@ -9,7 +9,7 @@ test('desde el aviso del día mínimo: Ahora ofrece 2 minutos y el botón parte 
   await expect(page.getByRole('heading', { name: 'Día mínimo: 2 minutos' })).toBeVisible();
   await expect(page).not.toHaveURL(/minimo/); // si recarga, no vuelve a aparecer
   await expect(page.getByText('Estudiar finanzas')).toBeVisible();
-  await expect(page.getByRole('button', { name: '▶ Foco' })).toHaveCount(0); // una sola decisión
+  await expect(page.getByRole('button', { name: /Foco 25 min/ })).toHaveCount(0); // una sola decisión
   await expect(page.getByLabel('Minutos de foco')).toHaveCount(0);
   await page.screenshot({ path: 'tests/capturas/dia-minimo.png' });
   await page.getByRole('button', { name: '▶ 2 minutos' }).click();

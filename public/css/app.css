@@ -154,10 +154,6 @@ a.btn { text-decoration: none; }
 .input.area { min-height: 200px; resize: vertical; line-height: 1.5; }
 .input.emoji-in { width: 64px; text-align: center; flex: 0 0 64px; }
 select.input { appearance: none; }
-/* Ahora: minutos de foco al lado del botón (misma rueda que en Foco). */
-.foco-elegir .rueda { flex: 1; position: relative; }
-.foco-elegir .rueda::after { content: '▾'; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
-.foco-elegir .rueda select.input { min-height: 48px; margin: 8px 0; padding: 12px 36px 12px 16px; font-weight: 650; }
 .row.wrap .input { flex: 1 1 120px; width: auto; }
 /* Encabezado que se queda arriba (Día se desplaza solo hasta "ahora" y esconde el ↻). */
 .top.sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); margin-top: calc(-1 * (var(--safe-top) + 12px)); padding-top: calc(var(--safe-top) + 12px); margin-bottom: 0; padding-bottom: 12px; }
