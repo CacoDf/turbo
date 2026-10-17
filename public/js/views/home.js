@@ -4,11 +4,12 @@ import { suggestTask, nextStep, nowAndNext, blocksFor, proximoHueco, AREAS, KIND
 import { levelInfo, todayWins, habitsDoneToday } from '../game.js';
 import { esc, fmtDateLong, fmtDuration, fmtClock, dueLabel, minToHm, DAY_SHORT } from '../util.js';
 import { bar, carSvg, toast } from '../ui.js';
-import { startFocus, breakdown, toggleStep, completeTask, focoMin } from '../actions.js';
+import { startFocus, breakdown, toggleStep, completeTask, focoMin, descansoMin } from '../actions.js';
 import { rerender, go } from '../router.js';
 import { routineNow, startRoutine } from './routines.js';
 import { needsCheckin, checkinCard } from './mood.js';
 import { weekFocusCard } from './review.js';
+import { rueda } from './focus.js';
 
 let skipIds = [];
 
@@ -43,7 +44,7 @@ function calendarNow() {
   if (!ev) return { html: '', running: false };
   const running = ev.startAt <= now;
   const leftMin = (ev.endAt - now) / 60000;
-  const min = Math.max(5, Math.min(25, Math.round(leftMin)));
+  const min = Math.max(5, Math.min(focoMin(), Math.round(leftMin)));
   return {
     running,
     html: `<section class="card now cal-now">
@@ -51,7 +52,7 @@ function calendarNow() {
       <h2 class="task-title">${esc(ev.title)}</h2>
       <div class="chips"><span class="chip">${ev.start}–${ev.end}</span>${running ? `<span class="chip">quedan ${fmtDuration(leftMin)}</span>` : ''}</div>
       <button class="btn huge" data-act="homeCalFocus" data-title="${esc(ev.title)}" data-min="${min}">▶ ${min} min de foco</button>
-      <p class="muted tiny">Bloque largo = varias vueltas de 25 min con 5 de descanso. Al terminar una, "Sigo 15 min más" o partes otra.</p>
+      <p class="muted tiny">Bloque largo = varias vueltas de ${focoMin()} min con ${descansoMin()} de descanso. Al terminar una, "Sigo 15 min más" o partes otra.</p>
     </section>`,
   };
 }
@@ -147,10 +148,11 @@ function taskCard() {
       </button>` : t.steps.length ? `<p class="ok">✅ Todos los pasos listos. ¿La marcas como terminada?</p>`
       : `<button class="btn ghost small" data-act="homeBreak" data-id="${t.id}">🪄 Dividir en pasos chicos</button>`}
     <button class="btn huge" data-act="homeStart" data-id="${t.id}" data-min="5">▶ Solo 5 minutos</button>
-    <div class="row">
-      <button class="btn ghost" data-act="homeStart" data-id="${t.id}" data-min="${focoMin()}">Foco ${focoMin()} min</button>
-      <button class="btn ghost" data-act="homeDone" data-id="${t.id}">✓ Terminada</button>
+    <div class="row foco-elegir">
+      <button class="btn ghost" data-act="homeStart" data-id="${t.id}" data-min="${focoMin()}">▶ Foco</button>
+      <span class="rueda">${rueda('focoMin', 5, 180, focoMin())}</span>
     </div>
+    <button class="btn ghost" data-act="homeDone" data-id="${t.id}">✓ Terminada</button>
     <div class="row between"><button class="link" data-act="homeSkip" data-id="${t.id}">Ahora no, dame otra →</button><button class="link" data-act="go" data-to="tareas">Ver todas</button></div>
   </section>`;
 }

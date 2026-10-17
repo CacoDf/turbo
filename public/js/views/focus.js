@@ -14,7 +14,7 @@ const DESCANSO = [
 ];
 
 // Rueda de minutos (en el iPhone abre el selector nativo, como el temporizador).
-const rueda = (campo, desde, hasta, valor) => `<select class="input" data-change="focusSet" data-f="${campo}" aria-label="${campo === 'focoMin' ? 'Minutos de foco' : 'Minutos de descanso'}">
+export const rueda = (campo, desde, hasta, valor) => `<select class="input" data-change="focusSet" data-f="${campo}" aria-label="${campo === 'focoMin' ? 'Minutos de foco' : 'Minutos de descanso'}">
   ${Array.from({ length: hasta - desde + 1 }, (_, i) => desde + i).map(n => `<option value="${n}"${n === valor ? ' selected' : ''}>${n} min</option>`).join('')}</select>`;
 
 const COMPANION = [

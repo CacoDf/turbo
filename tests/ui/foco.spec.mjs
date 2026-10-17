@@ -11,9 +11,10 @@ test('elegir 37 / 10, partir, descansar y volver a la misma tarea; los minutos q
   let s = await app.guardado();
   expect(s.settings).toMatchObject({ focoMin: 37, descansoMin: 10 });
 
-  // En Ahora, el botón de foco usa sus minutos; parte con la tarea.
+  // En Ahora, la rueda muestra sus minutos y el botón de foco parte con la tarea.
   await page.locator('#nav a', { hasText: 'Ahora' }).click();
-  await page.getByRole('button', { name: 'Foco 37 min' }).click();
+  await expect(page.getByLabel('Minutos de foco')).toHaveValue('37');
+  await page.getByRole('button', { name: '▶ Foco' }).click();
   s = await app.guardado();
   expect(s.focus).toMatchObject({ plannedMin: 37, taskId: 't1' });
 
@@ -48,6 +49,23 @@ test('elegir 37 / 10, partir, descansar y volver a la misma tarea; los minutos q
   await page.getByRole('button', { name: 'Volver al clásico 25 / 5' }).click();
   await expect(page.getByText('✓ Clásico 25 / 5')).toBeVisible();
   await expect(page.getByRole('button', { name: '▶ Partir 25 min' })).toBeVisible();
+});
+
+test('en Ahora se eligen los minutos de foco con la misma rueda, y Foco los recuerda', async ({ page, app }) => {
+  await app.abrir('ahora');
+  const rueda = page.getByLabel('Minutos de foco');
+  await expect(rueda).toHaveValue('25'); // el clásico de fábrica
+  await rueda.selectOption('45');
+  expect((await app.guardado()).settings).toMatchObject({ focoMin: 45 });
+  await expect(rueda).toHaveValue('45');
+  await page.locator('.card.now').screenshot({ path: 'tests/capturas/ahora-foco-elegir.png' }); // la fila queda bajo la barra en la captura de pantalla
+  await page.getByRole('button', { name: '▶ Foco' }).click();
+  expect((await app.guardado()).focus).toMatchObject({ plannedMin: 45, taskId: 't1' });
+  await expect(page.getByText('de 45 min')).toBeVisible();
+  await page.getByRole('button', { name: 'Terminar sesión' }).click();
+  await page.getByRole('button', { name: 'Lo dejo aquí por ahora' }).click();
+  await page.locator('#nav a', { hasText: 'Foco' }).click();
+  await expect(page.getByLabel('Minutos de foco')).toHaveValue('45');
 });
 
 test('cortar el descanso antes también ofrece otra vuelta', async ({ page, app }) => {
