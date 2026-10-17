@@ -100,3 +100,32 @@ test('si el puente se conectó desde otro aparato, Ajustes lo muestra conectado 
   await expect(page.getByText(/🟢 Conectado · 0 eventos/)).toBeVisible();
   await expect(page.locator('#puenteUrl')).toHaveCount(0);
 });
+
+test('si Google no trae nada nuevo, Capturar no se redibuja: el teclado sigue abierto con lo escrito', async ({ page, app }) => {
+  const ev = { title: 'Cálculo', date: '2026-10-20', start: '08:30', end: '10:00', allDay: false };
+  let soltar;
+  const espera = new Promise(r => (soltar = r));
+  let respuesta = { connected: true, puente: true, events: [ev], cambios: [] };
+  await page.route('**/api/**', route => route.fulfill({ json: {} }));
+  await page.route('**/api/calendar/import**', async route => { await espera; return route.fulfill({ json: respuesta }); });
+  await conServidor(page, app, { extEvents: [ev], calendar: { lastImport: 0, importOn: true, puenteOn: true, lastError: null } });
+  await app.abrir('capturar');
+  const ta = page.locator('#capText');
+  await ta.click();
+  await ta.pressSequentially('comprar pan');
+  await ta.evaluate(el => (el.dataset.marca = 'misma'));
+  soltar(); // Google responde lo mismo de antes
+  await expect.poll(async () => (await app.guardado()).calendar.lastImport).toBeGreaterThan(0);
+  await page.clock.runFor(500);
+  await expect(page.locator('#capText[data-marca="misma"]')).toHaveCount(1); // no se rehízo la pantalla
+  expect(await page.evaluate(() => document.activeElement?.id)).toBe('capText');
+  await expect(ta).toHaveValue('comprar pan');
+
+  // Si Google sí trae algo nuevo, se muestra (al volver a la app, sin tocar ↻).
+  respuesta = { connected: true, puente: true, events: [ev, { ...ev, title: 'Ayudantía', start: '12:00', end: '13:00' }], cambios: [] };
+  await page.locator('#nav a', { hasText: 'Día' }).click();
+  await expect(page.getByText('Ayudantía')).toHaveCount(0);
+  await page.clock.fastForward('21:00'); // pasa la espera de 20 min entre lecturas
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('Ayudantía').first()).toBeVisible();
+});

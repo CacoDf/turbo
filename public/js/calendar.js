@@ -19,14 +19,19 @@ export async function refreshExternal(force = false) {
   if (!force && Date.now() - (state.calendar.lastImport || 0) < 20 * 60000) return;
   try {
     const { events, connected, error, puente, cambios } = await calendarImportGet(force);
+    const extEvents = connected ? events : [];
+    const c = state.calendar;
+    // Si Google no trajo nada nuevo, no se redibuja: redibujar cierra el teclado y borra lo que se está escribiendo.
+    const igual = !force && !cambios?.length && JSON.stringify(extEvents) === JSON.stringify(state.extEvents || [])
+      && (error || null) === (c.lastError || null) && !!connected === !!c.importOn && !!puente === !!c.puenteOn;
     update(s => {
-      s.extEvents = connected ? events : [];
+      s.extEvents = extEvents;
       s.calendar.lastImport = Date.now();
       s.calendar.lastError = error || null;
       s.calendar.importOn = !!connected;
       s.calendar.puenteOn = !!puente;
       seguirGoogle(s, cambios);
-    });
+    }, { silent: igual });
     return { ok: !error, error };
   } catch (e) {
     console.warn('Calendario externo', e);
