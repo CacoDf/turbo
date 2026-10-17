@@ -19,3 +19,7 @@ Lo que dijo Joaquín al partir la Sesión 3 (16-10-2026):
 - La está usando y probando sobre la marcha; nada le molestó. WebKit en el PC y la prueba de 2 días siguen pendientes, sin apuro.
 - Los horarios de huecos podrían ir en Ajustes (hoy fijos: 08:30–20:00, desde 30 min). Solo si los quiere cambiar seguido.
 - Puente con Google: el Apps Script pide `getTag` y `getMyStatus` evento por evento y la lectura tarda. Se puede acelerar leyendo la marca solo en el calendario "Turbo" (exige volver a pegar el código y crear una versión nueva de la implementación).
+
+Lo que dijo Joaquín el 17-10-2026 (minutos de foco en Ahora):
+- Le molestó que en Ahora el foco fuera siempre 25 y el descanso 5. Ya se arregló: las ruedas de Foco están en las tarjetas de tarea y de calendario. Lo usa sobre todo con bloques de estudio de Google en curso.
+- Está chato de haber partido de un proyecto que siente mal hecho y lejos de dejarlo conforme. Antes de la Sesión 4: hacer con él la lista de lo que más le molesta hoy (máx. 5) y decidir juntos si se arregla dentro de Turbo o si conviene rehacer partes (ej. Ahora y Foco desde cero, con el mismo servidor y los mismos datos).
