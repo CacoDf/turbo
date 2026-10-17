@@ -1,10 +1,9 @@
 // Modo Foco: temporizador visual + mensajes de compañía + cierre sin culpa.
 import { state, update } from '../store.js';
-import { XP } from '../game.js';
 import { nextStep } from '../planner.js';
 import { esc, fmtClock, fmtDuration, pick } from '../util.js';
 import { ring, setRing, alarma, openSheet, closeSheet, toast } from '../ui.js';
-import { findTask, toggleStep, completeTask, endFocus, extendFocus, reward, startFocus, focoMin, descansoMin } from '../actions.js';
+import { findTask, toggleStep, completeTask, endFocus, extendFocus, startFocus, focoMin, descansoMin, focusXp } from '../actions.js';
 import { go, rerender } from '../router.js';
 
 const DESCANSO = [
@@ -104,12 +103,7 @@ export function mount() {
     const clock = document.getElementById('focusClock');
     if (clock) clock.textContent = fmtClock(left);
     setRing(document.querySelector('.focus-screen .ring'), Math.max(0, left / (cur.endAt - cur.start)));
-    // XP por cada 5 minutos reales de foco.
-    const ticks = Math.floor((Math.min(Date.now(), cur.endAt) - cur.start) / 300000);
-    if (ticks > cur.xpTicks && !cur.descanso) {
-      cur.xpTicks = ticks;
-      reward(XP.focusPer5, 'focus', '5 minutos de foco');
-    }
+    focusXp(); // XP por cada 5 minutos reales de foco
     if (Date.now() - lastBubble > 150000) {
       lastBubble = Date.now();
       const b = document.getElementById('focusBubble');

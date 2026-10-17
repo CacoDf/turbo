@@ -126,9 +126,25 @@ export function startFocus(taskId, minutes, label = null, extra = {}) {
 }
 
 // Cierra la sesión y suma el tiempo real trabajado a la tarea (para comparar con lo estimado).
+// XP de foco: +5 por cada 5 minutos reales. Si iOS congeló la app (pantalla bloqueada u otra pestaña),
+// al volver se ponen al día todos juntos, cada uno en el registro (de ahí cuenta la revisión semanal).
+export function focusXp() {
+  const f = state.focus;
+  if (!f || f.descanso) return;
+  const ticks = Math.floor((Math.min(Date.now(), f.endAt) - f.start) / 300000);
+  const n = ticks - (f.xpTicks || 0);
+  if (n <= 0) return;
+  update(s => { s.focus.xpTicks = ticks; }, { silent: true });
+  let levelUp = null;
+  for (let i = 0; i < n; i++) levelUp = award(XP.focusPer5, 'focus', '5 minutos de foco').levelUp || levelUp;
+  if (levelUp) celebrate(`¡Nivel ${levelUp}! Desbloqueaste: ${levelInfo().car.name} 🏎️`);
+  else toast(`+${n * XP.focusPer5} XP · ${n * 5} minutos de foco`);
+}
+
 export function endFocus() {
   const f = state.focus;
   if (!f) return 0;
+  focusXp(); // lo que faltaba sumar si la app estuvo congelada hasta el final
   const worked = Math.min(Date.now(), f.endAt) - f.start;
   dormirAudio();
   update(s => {

@@ -94,6 +94,28 @@ test('con un evento del calendario en curso, la rueda también está y el botón
   expect((await app.guardado()).focus).toMatchObject({ plannedMin: 105, label: '📚 Estudio Prueba 2 GCS' });
 });
 
+test('con la app congelada (pantalla bloqueada u otra pestaña) la XP y los minutos se ponen al día al volver', async ({ page, app }) => {
+  await app.abrir('foco');
+  await page.getByRole('button', { name: /Partir 25 min/ }).click();
+  const xp0 = (await app.guardado()).game.xp; // lo que da arrancar
+  const focoMinutos = async () => (await app.guardado()).game.log.filter(e => e.type === 'focus' && e.text.startsWith('5 minutos')).length;
+  await page.goto('/#/ahora'); // Foco ya no corre su reloj: como iOS con la pantalla bloqueada (en foco la barra se esconde)
+  await page.clock.fastForward('16:00');
+  await page.locator('.focus-live').click(); // vuelve a Foco
+  await expect(page.getByText('+15 XP · 15 minutos de foco')).toBeVisible();
+  expect(await focoMinutos()).toBe(3);
+  expect((await app.guardado()).game.xp - xp0).toBe(15);
+  // Termina con la app congelada y vuelve recién después: suma lo que faltaba, una sola vez.
+  await page.goto('/#/ahora');
+  await page.clock.fastForward('10:00');
+  await page.locator('.focus-live').click();
+  await expect(page.getByRole('button', { name: '☕ Descanso 5 min' })).toBeVisible();
+  expect(await focoMinutos()).toBe(5);
+  await page.getByRole('button', { name: 'Lo dejo aquí por ahora' }).click();
+  expect(await focoMinutos(), 'cerrar no suma de nuevo').toBe(5);
+  expect((await app.guardado()).game.xp - xp0).toBe(25);
+});
+
 test('cortar el descanso antes también ofrece otra vuelta', async ({ page, app }) => {
   await app.abrir('foco');
   await page.getByRole('button', { name: /Partir 25 min/ }).click();
