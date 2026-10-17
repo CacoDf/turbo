@@ -36,7 +36,7 @@ test('fin del foco: el cron lo calcula del respaldo y manda un push declarativo 
     assert.equal(msg.web_push, 8030);
     assert.equal(msg.notification.title, '🏁 ¡Tiempo!');
     assert.equal(msg.notification.navigate, 'https://turbo.test/#/foco', 'link absoluto a la app');
-    assert.match(msg.notification.body, /parar/);
+    assert.match(msg.notification.body, /para/i); // las 3 frases que rotan dicen que puede parar
     assert.equal(msg.app_badge, 1, 'número del ícono: 1 tarea para hoy');
     await w.cron(t0 + 4 * MIN);
     assert.equal(w.pushes.length, 1, 'no se repite');
