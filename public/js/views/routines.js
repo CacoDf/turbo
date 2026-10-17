@@ -2,7 +2,7 @@
 import { state, update } from '../store.js';
 import { XP } from '../game.js';
 import { esc, dayKey, fmtClock, fmtDuration, minToHm, uid, DAY_SHORT } from '../util.js';
-import { bar, toast, celebrate, beep, unlockAudio } from '../ui.js';
+import { bar, toast, celebrate } from '../ui.js';
 import { reward } from '../actions.js';
 import { rerender } from '../router.js';
 
@@ -103,18 +103,13 @@ export function mount() {
   const r = state.routines.find(x => x.id === run.id);
   const s = r?.steps[run.i];
   if (!s?.min) return;
-  let beeped = false;
   const started = run.stepStart;
   const id = setInterval(() => {
     const el = document.getElementById('rtClock');
     if (!el || !run) return clearInterval(id);
     const left = s.min * 60000 - (Date.now() - started);
     el.textContent = left > 0 ? fmtClock(left) : '+' + fmtClock(-left);
-    el.classList.toggle('over', left <= 0);
-    if (left <= 0 && !beeped) {
-      beeped = true;
-      beep();
-    }
+    el.classList.toggle('over', left <= 0); // sin sonido: en Turbo solo suena el pomodoro
   }, 1000);
   return () => clearInterval(id);
 }
@@ -140,7 +135,6 @@ const cur = () => state.routines.find(x => x.id === editId);
 export function startRoutine(id) {
   const r = state.routines.find(x => x.id === id);
   if (!r?.steps.length) return toast('Esta rutina no tiene pasos todavía');
-  unlockAudio();
   run = { id, i: 0, stepStart: Date.now() };
   rerender();
 }

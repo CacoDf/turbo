@@ -1,7 +1,7 @@
 // Arranque de Turbo: pantallas, navegación, eventos y sincronización.
 import { state, subscribe } from './store.js';
 import { checkStreak } from './game.js';
-import { closeSheet, unlockAudio, pararAlarma } from './ui.js';
+import { closeSheet, pararAlarma, unlockAudio } from './ui.js';
 import { setRenderer, route } from './router.js';
 import { pullBackup, scheduleBackup, flushBackup, marcarVisto, actualizarBadge } from './api.js';
 import { refreshExternal } from './calendar.js';
@@ -96,8 +96,8 @@ document.addEventListener('pointerdown', pararAlarma);
 
 // Un solo manejador para todos los botones: data-act="nombreAccion".
 document.addEventListener('click', ev => {
-  unlockAudio();
   pararAlarma();
+  if (state.focus) unlockAudio(); // si la app se recargó a mitad de un foco, el primer toque deja lista la alarma
   const el = ev.target.closest('[data-act]');
   if (!el) return;
   const fn = ACTIONS[el.dataset.act];

@@ -74,18 +74,27 @@ export function celebrate(text) {
   setTimeout(() => el.remove(), 2600);
 }
 
-// Pitido corto al terminar el temporizador (el primer toque del usuario desbloquea el audio en iOS).
+// Audio solo para el pomodoro: se despierta al partir un foco (siempre con un toque, como exige iOS) y se
+// duerme al terminar. Un audio despierto todo el rato hace que en el iPhone las notificaciones suenen distinto.
 let audioCtx;
+let dormirId = null;
 export function unlockAudio() {
+  clearTimeout(dormirId); // si había un "dormir" pendiente (de la alarma anterior), ya no corresponde
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
   } catch {}
 }
 
-// Alarma suave del foco: una campanita grave que se repite cada 5 s (hasta 1 min) hasta que toques algo.
+export function dormirAudio() {
+  try {
+    if (audioCtx?.state === 'running') audioCtx.suspend();
+  } catch {}
+}
+
+// Alarma suave del pomodoro: una campanita grave, 3 veces (cada 4 s) o hasta que toques algo.
 // Al terminar el foco baja (a descansar); al terminar el descanso sube (a partir). Solo suena con Turbo abierta:
-// con el teléfono bloqueado avisa la notificación del servidor.
+// con el teléfono bloqueado avisa la notificación, con el sonido del iPhone.
 let alarmaId = null;
 function campanita(notas) {
   if (!audioCtx) return;
@@ -109,28 +118,16 @@ function campanita(notas) {
 
 export function alarma(tipo = 'foco') {
   pararAlarma();
+  try { if (audioCtx?.state === 'suspended') audioCtx.resume(); } catch {}
   const notas = tipo === 'descanso' ? [392, 523.25] : [523.25, 392];
   let veces = 1;
   campanita(notas);
-  alarmaId = setInterval(() => (++veces > 12 ? pararAlarma() : campanita(notas)), 5000);
+  alarmaId = setInterval(() => (++veces > 3 ? pararAlarma() : campanita(notas)), 4000);
 }
 
 export function pararAlarma() {
+  if (!alarmaId) return;
   clearInterval(alarmaId);
   alarmaId = null;
-}
-
-export function beep() {
-  if (!audioCtx) return;
-  [0, 0.25, 0.5].forEach((t, i) => {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.frequency.value = [660, 880, 990][i];
-    g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t);
-    g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 0.2);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(audioCtx.currentTime + t);
-    o.stop(audioCtx.currentTime + t + 0.22);
-  });
+  dormirId = setTimeout(() => { if (!alarmaId) dormirAudio(); }, 2000); // deja terminar la última campanita
 }

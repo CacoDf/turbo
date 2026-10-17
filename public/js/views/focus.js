@@ -116,7 +116,9 @@ export function mount() {
     const clave = `${cur.start}-${cur.endAt}`; // si alarga la sesión, cambia el fin y puede volver a avisar
     if (left <= 0 && avisado !== clave) {
       avisado = clave;
-      alarma(cur.descanso ? 'descanso' : 'foco');
+      // Suena solo si terminó recién, con Foco a la vista. Si llegó desde la notificación (ya sonó) o volvió
+      // a la app después, solo se muestra la hoja.
+      if (-left < 4000 && document.visibilityState === 'visible') alarma(cur.descanso ? 'descanso' : 'foco');
       finishSheet();
     }
   }, 1000);

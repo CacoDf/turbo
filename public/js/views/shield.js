@@ -3,7 +3,6 @@
 import { state, update } from '../store.js';
 import { XP, shieldDays } from '../game.js';
 import { esc, fmtClock } from '../util.js';
-import { unlockAudio, beep } from '../ui.js';
 import { reward } from '../actions.js';
 import { rerender } from '../router.js';
 
@@ -136,16 +135,11 @@ export function mount() {
     return () => clearInterval(id);
   }
   if (phase === 'act' && flow.action) {
-    let beeped = false;
     const id = setInterval(() => {
       const el = document.getElementById('sosClock');
       if (!el) return clearInterval(id);
       const left = flow.until - Date.now();
       el.textContent = left > 0 ? fmtClock(left) : '¡Lo lograste!';
-      if (left <= 0 && !beeped) {
-        beeped = true;
-        beep();
-      }
     }, 1000);
     return () => clearInterval(id);
   }
@@ -153,7 +147,6 @@ export function mount() {
 
 export const actions = {
   sosStart: () => {
-    unlockAudio();
     phase = 'breathe';
     flow = { t: Date.now() };
     rerender();

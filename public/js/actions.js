@@ -4,7 +4,7 @@ import { award, XP, levelInfo } from './game.js';
 import { fallbackSteps } from './planner.js';
 import { hasServer, aiSteps } from './api.js';
 import { uid, dayKey, validDate, validHm, defaultEnd } from './util.js';
-import { toast, celebrate } from './ui.js';
+import { toast, celebrate, unlockAudio, dormirAudio } from './ui.js';
 import { go } from './router.js';
 
 export function reward(xp, type, text) {
@@ -116,6 +116,7 @@ export const focoMin = () => minutos(state.settings.focoMin, 5, 180, 25);
 export const descansoMin = () => minutos(state.settings.descansoMin, 1, 60, 5);
 
 export function startFocus(taskId, minutes, label = null, extra = {}) {
+  unlockAudio(); // siempre parte con un toque: iOS deja sonar la alarma del final
   update(s => {
     s.focus = { taskId, label, start: Date.now(), endAt: Date.now() + minutes * 60000, plannedMin: minutes, xpTicks: 0, ...extra };
     if (taskId) s.currentTaskId = taskId;
@@ -129,6 +130,7 @@ export function endFocus() {
   const f = state.focus;
   if (!f) return 0;
   const worked = Math.min(Date.now(), f.endAt) - f.start;
+  dormirAudio();
   update(s => {
     const t = s.tasks.find(y => y.id === f.taskId);
     if (t) t.focusMs = (t.focusMs || 0) + worked;
@@ -138,6 +140,7 @@ export function endFocus() {
 }
 
 export function extendFocus(minutes) {
+  unlockAudio(); // "+5" o "Sigo 15 min" también son un toque: el audio queda listo para el nuevo final
   update(s => {
     if (!s.focus) return;
     const base = Math.max(Date.now(), s.focus.endAt);
