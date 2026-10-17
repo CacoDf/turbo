@@ -1,5 +1,5 @@
 // Foco con tiempos a gusto: elegir foco y descanso (como el temporizador del celular), descansar y otra vuelta.
-import { test, expect } from './fixture.mjs';
+import { test, expect, KEY } from './fixture.mjs';
 
 test('elegir 37 / 10, partir, descansar y volver a la misma tarea; los minutos quedan guardados', async ({ page, app }) => {
   await app.abrir('foco');
@@ -66,6 +66,25 @@ test('en Ahora se eligen los minutos de foco con la misma rueda, y Foco los recu
   await page.getByRole('button', { name: 'Lo dejo aquí por ahora' }).click();
   await page.locator('#nav a', { hasText: 'Foco' }).click();
   await expect(page.getByLabel('Minutos de foco')).toHaveValue('45');
+});
+
+test('con un evento del calendario en curso, la rueda también está y el botón usa sus minutos', async ({ page, app }) => {
+  await page.addInitScript(k => {
+    const s = JSON.parse(localStorage.getItem(k));
+    s.extEvents = [{ date: '2026-10-20', start: '09:45', end: '11:45', title: '📚 Estudio Prueba 2 GCS' }];
+    localStorage.setItem(k, JSON.stringify(s));
+  }, KEY);
+  await app.abrir('ahora');
+  await expect(page.getByText('AHORA EN TU CALENDARIO')).toBeVisible();
+  await expect(page.getByRole('button', { name: '▶ 25 min de foco' })).toBeVisible();
+  await page.getByLabel('Minutos de foco').selectOption('50');
+  await expect(page.getByRole('button', { name: '▶ 50 min de foco' })).toBeVisible();
+  await expect(page.getByText('varias vueltas de 50 min')).toBeVisible();
+  await page.locator('.cal-now').screenshot({ path: 'tests/capturas/ahora-calendario-foco.png' });
+  await page.getByLabel('Minutos de foco').selectOption('120'); // quedan 105 min del evento: no se pasa del final
+  await expect(page.getByRole('button', { name: '▶ 105 min de foco' })).toBeVisible();
+  await page.getByRole('button', { name: '▶ 105 min de foco' }).click();
+  expect((await app.guardado()).focus).toMatchObject({ plannedMin: 105, label: '📚 Estudio Prueba 2 GCS' });
 });
 
 test('cortar el descanso antes también ofrece otra vuelta', async ({ page, app }) => {

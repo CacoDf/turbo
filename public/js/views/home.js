@@ -52,6 +52,7 @@ function calendarNow() {
       <h2 class="task-title">${esc(ev.title)}</h2>
       <div class="chips"><span class="chip">${ev.start}–${ev.end}</span>${running ? `<span class="chip">quedan ${fmtDuration(leftMin)}</span>` : ''}</div>
       <button class="btn huge" data-act="homeCalFocus" data-title="${esc(ev.title)}" data-min="${min}">▶ ${min} min de foco</button>
+      <div class="row foco-elegir"><span class="rueda">${rueda('focoMin', 5, 180, focoMin())}</span></div>
       <p class="muted tiny">Bloque largo = varias vueltas de ${focoMin()} min con ${descansoMin()} de descanso. Al terminar una, "Sigo 15 min más" o partes otra.</p>
     </section>`,
   };
