@@ -37,20 +37,20 @@ function minimoCard() {
   </section>`;
 }
 
-// Evento de Google Calendar en curso (o que empieza en ≤15 min): se convierte en foco con un toque.
+// Evento de Google Calendar en curso: se convierte en foco con un toque. Antes de que empiece basta la
+// pastilla de arriba ("en 12 min"): así Ahora nunca muestra dos tarjetas grandes a la vez.
 function calendarNow() {
   const now = new Date();
-  const ev = blocksFor(now).find(b => b.ext && b.startAt - now <= 15 * 60000 && b.endAt > now);
+  const ev = blocksFor(now).find(b => b.ext && b.startAt <= now && b.endAt > now);
   if (!ev) return { html: '', running: false };
-  const running = ev.startAt <= now;
   const leftMin = (ev.endAt - now) / 60000;
   const min = Math.max(5, Math.min(focoMin(), Math.round(leftMin)));
   return {
-    running,
+    running: true,
     html: `<section class="card now cal-now">
-      <div class="label">📅 ${running ? 'AHORA EN TU CALENDARIO' : `EMPIEZA EN ${fmtDuration((ev.startAt - now) / 60000).toUpperCase()}`}</div>
+      <div class="label">📅 AHORA EN TU CALENDARIO</div>
       <h2 class="task-title">${esc(ev.title)}</h2>
-      <div class="chips"><span class="chip">${ev.start}–${ev.end}</span>${running ? `<span class="chip">quedan ${fmtDuration(leftMin)}</span>` : ''}</div>
+      <div class="chips"><span class="chip">${ev.start}–${ev.end}</span><span class="chip">quedan ${fmtDuration(leftMin)}</span></div>
       <button class="btn huge" data-act="homeCalFocus" data-title="${esc(ev.title)}" data-min="${min}">▶ ${min} min de foco</button>
       ${ruedas()}
       <p class="muted tiny">Bloque largo = varias vueltas de ${focoMin()} min con ${descansoMin()} de descanso. Al terminar una, "Sigo 15 min más" o partes otra.</p>
@@ -190,7 +190,14 @@ export function render() {
 }
 
 export function mount() {
-  if (!state.focus) return;
+  if (!state.focus) {
+    // Si un evento de Google empieza con Ahora abierta, su tarjeta aparece sola en ese minuto.
+    const now = new Date();
+    const prox = blocksFor(now).find(b => b.ext && b.startAt > now);
+    if (!prox) return;
+    const t = setTimeout(rerender, Math.min(prox.startAt - now + 500, 2 ** 31 - 1));
+    return () => clearTimeout(t);
+  }
   const id = setInterval(() => {
     const el = document.getElementById('homeFocusLeft');
     if (!el || !state.focus) return clearInterval(id);

@@ -116,6 +116,23 @@ test('con la app congelada (pantalla bloqueada u otra pestaña) la XP y los minu
   expect((await app.guardado()).game.xp - xp0).toBe(25);
 });
 
+test('un evento que todavía no empieza no agrega otra tarjeta grande: Ahora muestra solo la tarea', async ({ page, app }) => {
+  await page.addInitScript(k => {
+    const s = JSON.parse(localStorage.getItem(k));
+    s.extEvents = [{ date: '2026-10-20', start: '10:10', end: '11:00', title: 'Ayudantía' }];
+    localStorage.setItem(k, JSON.stringify(s));
+  }, KEY);
+  await app.abrir('ahora');
+  await expect(page.locator('.card.now')).toHaveCount(1);
+  await expect(page.getByText(/EMPIEZA EN/)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Estudiar finanzas' })).toBeVisible();
+  await expect(page.getByLabel('Minutos de foco')).toHaveCount(1);
+  // Cuando empieza (con Ahora abierta), la tarjeta del evento reemplaza sola a la de la tarea.
+  await page.clock.runFor(10 * 60000 + 1000);
+  await expect(page.getByText('AHORA EN TU CALENDARIO')).toBeVisible();
+  await expect(page.locator('.card.now')).toHaveCount(1);
+});
+
 test('cortar el descanso antes también ofrece otra vuelta', async ({ page, app }) => {
   await app.abrir('foco');
   await page.getByRole('button', { name: /Partir 25 min/ }).click();
